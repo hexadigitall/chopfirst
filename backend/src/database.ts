@@ -1,12 +1,17 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'chopfirst.db');
+const DB_PATH = process.env.VERCEL === '1'
+  ? '/tmp/chopfirst.db'
+  : path.join(__dirname, '..', 'data', 'chopfirst.db');
 
 let db: Database.Database;
 
 export function getDb(): Database.Database {
   if (!db) {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
@@ -110,4 +115,14 @@ export function initDb(): void {
 
   // Migrations for existing databases
   try { d.exec('ALTER TABLE tier_limits ADD COLUMN credit_cap REAL NOT NULL DEFAULT 5000'); } catch {}
+
+  // Auto-seed if database is empty (for serverless deployments)
+  const userCount = (d.prepare('SELECT COUNT(*) as c FROM users').get() as any).c;
+  if (userCount === 0) {
+    // Using dynamic import to avoid circular dependency
+    const { seed } = require('./seed');
+    seed(d);
+  }
 }
+
+export { DB_PATH };
