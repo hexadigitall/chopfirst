@@ -1,9 +1,8 @@
 {
-  "buildCommand": "cd frontend && npm ci && npm run build",
+  "buildCommand": "npm run vercel-build",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.ts": {
-      "runtime": "@vercel/node@5",
       "maxDuration": 30
     }
   },
