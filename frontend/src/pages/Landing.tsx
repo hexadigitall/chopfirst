@@ -9,28 +9,23 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
     api.getPlatformInfo().then(setInfo).catch(() => {});
   }, []);
 
-  if (user) {
-    return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 ring-2 ring-emerald-200 flex items-center justify-center">
-              <img src="/logo-small.png" alt="" className="w-8" />
-            </div>
-            <h1 className="text-3xl font-bold text-stone-800">Chop First</h1>
-          </div>
-          <p className="text-stone-500 mb-2">Welcome back, {user.name}</p>
-          <p className="text-stone-400 text-sm mb-6">Your account is {user.status.toLowerCase()}.</p>
-          <Link to="/dashboard" className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors">
-            Go to Dashboard →
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-stone-50">
+      {/* Logged-in nav */}
+      {user && (
+        <div className="bg-white border-b border-stone-200 sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2 font-bold text-lg text-stone-800">
+              <img src="/logo-small.png" alt="" className="w-8 h-8" />
+              <span>Chop First</span>
+            </div>
+            <Link to="/dashboard" className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+              Dashboard →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <section className="bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 text-white">
         <div className="max-w-6xl mx-auto px-4 py-20 md:py-28">
@@ -52,9 +47,15 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
               When you can't afford a meal, we step in — no shame, no predatory interest, just a fair path forward.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/login" className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
-                Try the Demo →
-              </Link>
+              {user ? (
+                <Link to="/dashboard" className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
+                  Go to Dashboard →
+                </Link>
+              ) : (
+                <Link to="/login" className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
+                  Try the Demo →
+                </Link>
+              )}
               <a href="#how" className="px-8 py-3.5 bg-emerald-500/30 text-white rounded-xl font-medium text-lg hover:bg-emerald-500/40 transition-colors border border-emerald-400/30">
                 How It Works
               </a>
@@ -187,9 +188,15 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
           <p className="text-emerald-100 mb-8 max-w-lg mx-auto">
             Explore the full prototype — experience the checkout flow, tier system, task marketplace, and management dashboards.
           </p>
-          <Link to="/login" className="inline-flex items-center px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
-            Launch Demo →
-          </Link>
+          {user ? (
+            <Link to="/dashboard" className="inline-flex items-center px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
+              Go to Dashboard →
+            </Link>
+          ) : (
+            <Link to="/login" className="inline-flex items-center px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
+              Launch Demo →
+            </Link>
+          )}
         </div>
       </section>
 
