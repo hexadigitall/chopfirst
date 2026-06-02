@@ -10,11 +10,12 @@ const tierStyles: Record<string, string> = {
 export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }) {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.getAdminUsers()
       .then(setUsers)
-      .catch(() => {})
+      .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -26,9 +27,14 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
           <h1 className="text-2xl font-bold">Demo Login</h1>
           <p className="text-stone-500 mt-1">Select a user to explore the Chop First platform</p>
         </div>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+            {error}
+          </div>
+        )}
         {loading ? (
           <div className="text-center text-stone-400 animate-pulse">Loading users...</div>
-        ) : (
+        ) : !error && (
           <div className="space-y-3">
             {users.map((u: any) => (
               <button
