@@ -6,24 +6,6 @@ export async function getCheapestItemPrice(): Promise<number> {
   return result.rows[0]?.min_price || 500;
 }
 
-export async function getTotalFeesPaid(userId: string): Promise<number> {
-  const db = getDb();
-  const result = await db.query(
-    'SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id = $1 AND type = $2',
-    [userId, 'FEE']
-  );
-  return result.rows[0]?.total || 0;
-}
-
-export async function calculateEffectiveCap(tierLimit: { credit_cap: number }, userId: string): Promise<{ effectiveCap: number; breakdown: { baseCap: number; feesBonus: number } }> {
-  const totalFees = await getTotalFeesPaid(userId);
-  const baseCap = tierLimit.credit_cap;
-  const feesBonus = totalFees * 2;
-  const velocityLimit = baseCap * 3;
-  const effectiveCap = Math.min(baseCap + feesBonus, velocityLimit);
-  return { effectiveCap, breakdown: { baseCap, feesBonus } };
-}
-
 export async function checkAndApplyFreeze(userId: string): Promise<{ frozen: boolean; reason?: string }> {
   const db = getDb();
   const result = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -34,9 +16,8 @@ export async function checkAndApplyFreeze(userId: string): Promise<{ frozen: boo
   const tierLimit = tierResult.rows[0] as any;
   if (!tierLimit) return { frozen: false };
 
-  const { effectiveCap } = await calculateEffectiveCap(tierLimit, userId);
-  const remainingCredit = effectiveCap - user.outstanding_balance;
   const cheapestPrice = await getCheapestItemPrice();
+  const remainingCredit = tierLimit.credit_cap - user.outstanding_balance;
 
   if (remainingCredit < cheapestPrice && user.status !== 'FROZEN') {
     await db.query('UPDATE users SET status = $1 WHERE id = $2', ['FROZEN', userId]);
