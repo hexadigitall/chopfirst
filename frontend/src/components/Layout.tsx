@@ -1,15 +1,20 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { cn } from '../lib/utils';
+import { cn, isStandalone } from '../lib/utils';
 
-const navItems = [
+const allNavItems = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
   { path: '/tasks', label: 'Tasks', icon: '📋' },
   { path: '/merchant', label: 'Merchant', icon: '🏪' },
   { path: '/admin', label: 'Admin', icon: '⚙️' },
 ];
 
+const standaloneBlocklist = new Set(['/merchant', '/admin']);
+
 export default function Layout({ user, onLogout }: { user: any; onLogout: () => void }) {
   const location = useLocation();
+  const navItems = isStandalone()
+    ? allNavItems.filter(item => !standaloneBlocklist.has(item.path))
+    : allNavItems;
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col">
