@@ -6,6 +6,7 @@ export default function MerchantDashboard() {
   const [merchants, setMerchants] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.getMerchants().then(setMerchants).catch(() => {});
@@ -13,7 +14,8 @@ export default function MerchantDashboard() {
   }, []);
 
   const loadMerchant = (id: string) => {
-    api.getMerchant(id).then(setSelected).catch(() => {});
+    setError('');
+    api.getMerchant(id).then(setSelected).catch((e) => setError(e.message));
   };
 
   const pendingTasks = tasks.filter((t: any) => t.status === 'COMPLETED_PENDING' && t.merchant_id === selected?.id);
@@ -31,6 +33,12 @@ export default function MerchantDashboard() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Merchant Dashboard</h1>
+
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+          {error}
+        </div>
+      )}
 
       {/* Merchant selector */}
       <div className="flex gap-2 flex-wrap">
@@ -57,16 +65,16 @@ export default function MerchantDashboard() {
                 <div className="text-3xl">🏪</div>
                 <div>
                   <h2 className="font-bold text-lg">{selected.name}</h2>
-                  <p className="text-sm text-stone-400">{selected.location}</p>
+                  <p className="text-sm text-stone-500">{selected.location}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-stone-50 rounded-lg p-3">
-                  <div className="text-stone-400">Total Orders</div>
+                  <div className="text-stone-500">Total Orders</div>
                   <div className="text-xl font-bold">{selected.stats?.total_orders || 0}</div>
                 </div>
                 <div className="bg-stone-50 rounded-lg p-3">
-                  <div className="text-stone-400">Revenue</div>
+                  <div className="text-stone-500">Revenue</div>
                   <div className="text-xl font-bold text-emerald-600">{formatNGN(selected.stats?.revenue || 0)}</div>
                 </div>
               </div>

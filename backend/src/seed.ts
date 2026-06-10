@@ -1,5 +1,9 @@
 import { initDb, getDb } from './database';
-import { v4 as uuid } from 'uuid';
+
+let idCounter = 0;
+function id(): string {
+  return `id_${++idCounter}`;
+}
 
 export function seed(db: any): void {
   db.exec('DELETE FROM transactions; DELETE FROM order_items; DELETE FROM orders; DELETE FROM tasks; DELETE FROM menu_items; DELETE FROM merchants; DELETE FROM users; DELETE FROM tier_limits;');
@@ -13,19 +17,19 @@ export function seed(db: any): void {
   for (const t of tiers) insertTier.run(t.tier, t.max_subsidy, t.window_days, t.min_cycles, t.credit_cap);
 
   const users = [
-    { id: uuid(), phone: '+2348010000001', name: 'Chidi Okonkwo', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 1, outstanding: 0, total: 1500, wallet: '0x0000000000000000000000000000000000000001', kind: 10 },
-    { id: uuid(), phone: '+2348010000002', name: 'Amina Bello', tier: 'VERIFIED', status: 'ACTIVE', cycles: 4, outstanding: 1050, total: 8500, wallet: '0x0000000000000000000000000000000000000002', kind: 45 },
-    { id: uuid(), phone: '+2348010000003', name: 'Femi Adeyemi', tier: 'COMMUNITY', status: 'ACTIVE', cycles: 8, outstanding: 0, total: 22000, wallet: '0x0000000000000000000000000000000000000003', kind: 120 },
-    { id: uuid(), phone: '+2348010000004', name: 'Nkechi Eze', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 2, outstanding: 4800, total: 7200, wallet: '0x0000000000000000000000000000000000000004', kind: 10 },
-    { id: uuid(), phone: '+2348010000005', name: 'Tunde Bakare', tier: 'VERIFIED', status: 'ACTIVE', cycles: 3, outstanding: 500, total: 6200, wallet: '0x0000000000000000000000000000000000000005', kind: 30 },
-  ];
+    { phone: '+2348010000001', name: 'Chidi Okonkwo', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 1, outstanding: 0, total: 1500, wallet: '0x0000000000000000000000000000000000000001', kind: 10 },
+    { phone: '+2348010000002', name: 'Amina Bello', tier: 'VERIFIED', status: 'ACTIVE', cycles: 4, outstanding: 1050, total: 8500, wallet: '0x0000000000000000000000000000000000000002', kind: 45 },
+    { phone: '+2348010000003', name: 'Femi Adeyemi', tier: 'COMMUNITY', status: 'ACTIVE', cycles: 8, outstanding: 0, total: 22000, wallet: '0x0000000000000000000000000000000000000003', kind: 120 },
+    { phone: '+2348010000004', name: 'Nkechi Eze', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 2, outstanding: 4800, total: 7200, wallet: '0x0000000000000000000000000000000000000004', kind: 10 },
+    { phone: '+2348010000005', name: 'Tunde Bakare', tier: 'VERIFIED', status: 'ACTIVE', cycles: 3, outstanding: 500, total: 6200, wallet: '0x0000000000000000000000000000000000000005', kind: 30 },
+  ].map(u => ({ ...u, id: id() }));
   const insertUser = db.prepare('INSERT INTO users (id,phone,name,tier,status,clean_cycles,outstanding_balance,total_subsidized,wallet_address,kind_balance) VALUES (?,?,?,?,?,?,?,?,?,?)');
   for (const u of users) {
     insertUser.run(u.id, u.phone, u.name, u.tier, u.status, u.cycles, u.outstanding, u.total, u.wallet, u.kind);
   }
 
   const merchants = [
-    { id: uuid(), name: 'Mama Put Kitchen', location: 'Yaba, Lagos', items: [
+    { name: 'Mama Put Kitchen', location: 'Yaba, Lagos', items: [
       { name: 'Jollof Rice & Chicken', desc: 'Smoky party jollof with grilled chicken', price: 2500, cat: 'Meal' },
       { name: 'Egusi Soup & Pounded Yam', desc: 'Rich melon seed soup with fluffy pounded yam', price: 2800, cat: 'Meal' },
       { name: 'Fried Rice & Plantain', desc: 'Fried rice with sweet plantain & coleslaw', price: 2200, cat: 'Meal' },
@@ -37,7 +41,7 @@ export function seed(db: any): void {
       { name: 'Fruit Juice', desc: 'Chilled mixed fruit juice', price: 600, cat: 'Drink' },
       { name: 'Malt Drink', desc: 'Non-alcoholic malt beverage', price: 350, cat: 'Drink' },
     ]},
-    { id: uuid(), name: 'Buka Bistro', location: 'Surulere, Lagos', items: [
+    { name: 'Buka Bistro', location: 'Surulere, Lagos', items: [
       { name: 'Eba & Vegetable Soup', desc: 'Garri with assorted meat & green veg', price: 2700, cat: 'Meal' },
       { name: 'Yam Porridge (Asaro)', desc: 'Boiled yam in pepper-tomato sauce', price: 2000, cat: 'Meal' },
       { name: 'Grilled Fish & Chips', desc: 'Tilapia with crispy fries & tartar', price: 3200, cat: 'Meal' },
@@ -49,7 +53,7 @@ export function seed(db: any): void {
       { name: 'Kunun Aya', desc: 'Chilled tiger nut milk drink', price: 400, cat: 'Drink' },
       { name: 'Smoothie', desc: 'Banana & peanut tiger nut smoothie', price: 800, cat: 'Drink' },
     ]},
-    { id: uuid(), name: 'Suya Spot', location: 'Ikeja, Lagos', items: [
+    { name: 'Suya Spot', location: 'Ikeja, Lagos', items: [
       { name: 'Beef Suya & Onions', desc: 'Spiced grilled beef with fresh onions & spice', price: 2000, cat: 'Meal' },
       { name: 'Chicken Suya & Chips', desc: 'Spicy grilled chicken with chips', price: 2500, cat: 'Meal' },
       { name: 'Goat Meat Suya', desc: 'Spiced grilled goat meat \u2014 stick of 10', price: 3000, cat: 'Meal' },
@@ -60,13 +64,13 @@ export function seed(db: any): void {
       { name: 'Chapman Mocktail', desc: 'Classic Nigerian mocktail', price: 1000, cat: 'Drink' },
       { name: 'Fura da Nono', desc: 'Millet fermented milk drink', price: 700, cat: 'Drink' },
     ]},
-  ];
+  ].map(m => ({ ...m, id: id() }));
   const insertMerchant = db.prepare('INSERT INTO merchants (id,name,location,is_active,total_prepaid,total_revenue) VALUES (?,?,?,1,?,?)');
   const insertItem = db.prepare('INSERT INTO menu_items (id,merchant_id,name,description,price,category) VALUES (?,?,?,?,?,?)');
   for (const m of merchants) {
     insertMerchant.run(m.id, m.name, m.location, Math.floor(Math.random() * 120) + 30, m.items.reduce((s, i) => s + i.price * (Math.floor(Math.random() * 50) + 10), 0));
     for (const item of m.items) {
-      insertItem.run(uuid(), m.id, item.name, item.desc, item.price, item.cat);
+      insertItem.run(id(), m.id, item.name, item.desc, item.price, item.cat);
     }
   }
 
@@ -81,7 +85,7 @@ export function seed(db: any): void {
   ];
   const insertTask = db.prepare('INSERT INTO tasks (id,title,description,category,credit_value,merchant_id,status) VALUES (?,?,?,?,?,?,?)');
   for (const t of taskDefs) {
-    insertTask.run(uuid(), t.title, t.desc, t.cat, t.credit, t.merchantIdx !== null ? merchants[t.merchantIdx].id : null, 'OPEN');
+    insertTask.run(id(), t.title, t.desc, t.cat, t.credit, t.merchantIdx !== null ? merchants[t.merchantIdx].id : null, 'OPEN');
   }
 
   const orderDefs = [
@@ -107,7 +111,7 @@ export function seed(db: any): void {
   }
 
   for (const o of orderDefs) {
-    const orderId = uuid();
+    const orderId = id();
     const merchant = merchants[o.merchantIdx];
     const total = o.items.reduce((s, i) => s + i.price * i.qty, 0);
     const fee = Math.round((total - o.down) * 0.10 * 100) / 100;
@@ -121,14 +125,14 @@ export function seed(db: any): void {
     for (const item of o.items) {
       const menuItem = allMenuItems.find((m: any) => m.name === item.name && m.merchant_id === merchant.id);
       if (menuItem) {
-        insertOrderItem.run(uuid(), orderId, menuItem.id, item.qty, item.price);
+        insertOrderItem.run(id(), orderId, menuItem.id, item.qty, item.price);
       }
     }
 
-    insertTx.run(uuid(), orderId, userId, merchant.id, o.down, 'DOWN_PAYMENT', 'COMPLETED', createdAt);
-    insertTx.run(uuid(), orderId, userId, merchant.id, outstanding - fee, 'SUBSIDY', 'COMPLETED', createdAt);
+    insertTx.run(id(), orderId, userId, merchant.id, o.down, 'DOWN_PAYMENT', 'COMPLETED', createdAt);
+    insertTx.run(id(), orderId, userId, merchant.id, outstanding - fee, 'SUBSIDY', 'COMPLETED', createdAt);
     if (outstanding > 0) {
-      insertTx.run(uuid(), orderId, userId, merchant.id, fee, 'FEE', 'COMPLETED', createdAt);
+      insertTx.run(id(), orderId, userId, merchant.id, fee, 'FEE', 'COMPLETED', createdAt);
     }
   }
 

@@ -13,7 +13,7 @@ router.get('/:id', (req: Request, res: Response) => {
   const db = getDb();
   const merchant = db.prepare('SELECT * FROM merchants WHERE id = ?').get(req.params.id) as any;
   if (!merchant) { res.status(404).json({ success: false, error: 'Merchant not found' }); return; }
-  const menu = db.prepare('SELECT * FROM menu_items WHERE merchant_id = ? AND available = 1').all(req.params.id);
+  const menu = db.prepare('SELECT * FROM menu_items WHERE merchant_id = ?').all(req.params.id);
   const stats = db.prepare(`
     SELECT COUNT(*) as total_orders, COALESCE(SUM(total_cost),0) as revenue
     FROM orders WHERE merchant_id = ? AND status != 'DISPUTED'

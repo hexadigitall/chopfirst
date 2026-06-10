@@ -89,28 +89,28 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
           </div>
         </div>
         <div className="flex gap-4 text-sm flex-wrap">
-          <div className="bg-white/15 rounded-lg px-3 py-2">
+          <div className="bg-emerald-700 rounded-lg px-3 py-2">
             <div className="text-emerald-200">Clean Cycles</div>
             <div className="font-bold">{user?.clean_cycles || 0}</div>
           </div>
-          <div className="bg-white/15 rounded-lg px-3 py-2">
+          <div className="bg-emerald-700 rounded-lg px-3 py-2">
             <div className="text-emerald-200">Per-Order Limit</div>
             <div className="font-bold">{formatNGN(user?.tierLimit?.max_subsidy || 0)}</div>
           </div>
-          <div className="bg-white/15 rounded-lg px-3 py-2">
+          <div className="bg-emerald-700 rounded-lg px-3 py-2">
             <div className="text-emerald-200">Window</div>
             <div className="font-bold">{user?.tierLimit?.window_days || 7}d</div>
           </div>
         </div>
         {/* Credit cap bar */}
-        <div className="mt-4 bg-white/10 rounded-lg px-3 py-2">
+        <div className="mt-4 bg-emerald-700 rounded-lg px-3 py-2">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-emerald-200">Credit Cap Usage</span>
             <span className="font-bold">
               {formatNGN(user?.outstanding_balance || 0)} / {formatNGN(user?.tierLimit?.credit_cap || 5000)}
             </span>
           </div>
-          <div className="bg-white/20 rounded-full h-2 overflow-hidden">
+          <div className="bg-emerald-600 rounded-full h-2 overflow-hidden">
             <div
               className="h-full rounded-full bg-white transition-all"
               style={{ width: `${Math.min(100, ((user?.outstanding_balance || 0) / (user?.tierLimit?.credit_cap || 5000)) * 100)}%` }}

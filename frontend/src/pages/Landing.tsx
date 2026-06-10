@@ -31,7 +31,7 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
         <div className="max-w-6xl mx-auto px-4 py-20 md:py-28">
           <div className="max-w-3xl">
           <div className="flex items-center gap-5 mb-6">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/20 ring-2 ring-white/30 overflow-hidden flex items-center justify-center">
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-emerald-600 ring-2 ring-emerald-400/40 overflow-hidden flex items-center justify-center">
               <img src="/logo.png" alt="Chop First" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-[64px] md:text-[80px] font-bold leading-none">
@@ -56,7 +56,7 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
                   Try the Demo →
                 </Link>
               )}
-              <a href="#how" className="px-8 py-3.5 bg-emerald-500/30 text-white rounded-xl font-medium text-lg hover:bg-emerald-500/40 transition-colors border border-emerald-400/30">
+              <a href="#how" className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
                 How It Works
               </a>
             </div>
@@ -64,7 +64,7 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
         </div>
         {/* Stats bar */}
         {info && (
-          <div className="border-t border-emerald-500/30 bg-emerald-800/50">
+          <div className="border-t border-emerald-600 bg-emerald-900">
             <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-2xl font-bold">{info.stats.totalMealsServed}</div>
