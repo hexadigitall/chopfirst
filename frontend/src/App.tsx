@@ -48,7 +48,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('chopfirst_user');
     setUser(null);
-    navigate('/');
+    navigate('/login');
   };
 
   if (loading) {
