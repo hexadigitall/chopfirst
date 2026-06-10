@@ -10,6 +10,7 @@ import Checkout from './pages/Checkout';
 import Tasks from './pages/Tasks';
 import MerchantDashboard from './pages/MerchantDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import Login from './pages/Login';
 import DemoLogin from './pages/DemoLogin';
 import Signup from './pages/Signup';
 import Approval from './pages/Approval';
@@ -67,7 +68,8 @@ export default function App() {
             ? <Navigate to="/signup" replace />
             : <Landing user={user} onLogin={handleLogin} />
       } />
-      <Route path="/login" element={<DemoLogin onLogin={handleLogin} />} />
+      <Route path="/login" element={<Login onLogin={handleLogin} />} />
+      <Route path="/demo-login" element={<DemoLogin onLogin={handleLogin} />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/approval" element={<Approval />} />
       <Route element={<Layout user={user} onLogout={handleLogout} />}>

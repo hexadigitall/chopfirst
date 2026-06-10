@@ -25,6 +25,18 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: user });
 }));
 
+router.post('/login', asyncHandler(async (req: Request, res: Response) => {
+  const { phone } = req.body;
+  if (!phone) { res.status(400).json({ success: false, error: 'Phone number required' }); return; }
+  const db = getDb();
+  const result = await db.query('SELECT * FROM users WHERE phone = $1', [phone]);
+  const user = result.rows[0] as any;
+  if (!user) { res.status(404).json({ success: false, error: 'No account found with that phone number' }); return; }
+  const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
+  const tierLimit = tierResult.rows[0] as any;
+  res.json({ success: true, data: { ...user, tierLimit } });
+}));
+
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const { phone, name } = req.body;
   if (!phone || !name) { res.status(400).json({ success: false, error: 'Phone and name required' }); return; }

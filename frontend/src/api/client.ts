@@ -18,6 +18,8 @@ export const api = {
   // Users
   getMe: () => request<any>('/users/me'),
   getUser: (id: string) => request<any>(`/users/${id}`),
+  login: (phone: string) =>
+    request<any>('/users/login', { method: 'POST', body: JSON.stringify({ phone }) }),
   createUser: (data: { phone: string; name: string }) =>
     request<any>('/users', { method: 'POST', body: JSON.stringify(data) }),
   payUser: (amount: number) =>
