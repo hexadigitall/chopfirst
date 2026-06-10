@@ -1,53 +1,60 @@
 import { Router, Request, Response } from 'express';
-import { getDb } from '../database';
+import { getDb, asyncHandler } from '../database';
 import { authenticate } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
 import { checkAndApplyFreeze, calculateEffectiveCap } from '../helpers';
 
 const router = Router();
 
-router.get('/me', authenticate, (req: Request, res: Response) => {
+router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
-  checkAndApplyFreeze(req.user!.id);
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.id) as any;
+  await checkAndApplyFreeze(req.user!.id);
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [req.user!.id]);
+  const user = result.rows[0] as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
-  const tierLimit = db.prepare('SELECT * FROM tier_limits WHERE tier = ?').get(user.tier) as any;
-  const effectiveCapData = calculateEffectiveCap(tierLimit, user.id);
+  const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
+  const tierLimit = tierResult.rows[0] as any;
+  const effectiveCapData = await calculateEffectiveCap(tierLimit, user.id);
   res.json({ success: true, data: { ...user, tierLimit: { ...tierLimit, ...effectiveCapData } } });
-});
+}));
 
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+  const user = result.rows[0] as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   res.json({ success: true, data: user });
-});
+}));
 
-router.post('/', (req: Request, res: Response) => {
+router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const { phone, name } = req.body;
   if (!phone || !name) { res.status(400).json({ success: false, error: 'Phone and name required' }); return; }
   const db = getDb();
   const id = uuid();
-  db.prepare('INSERT INTO users (id,phone,name) VALUES (?,?,?)').run(id, phone, name);
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  await db.query('INSERT INTO users (id,phone,name) VALUES ($1,$2,$3)', [id, phone, name]);
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
+  const user = result.rows[0];
   res.status(201).json({ success: true, data: user });
-});
+}));
 
-router.post('/pay', authenticate, (req: Request, res: Response) => {
+router.post('/pay', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const { amount } = req.body;
   if (!amount || amount <= 0) { res.status(400).json({ success: false, error: 'Invalid amount' }); return; }
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.id) as any;
+  const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user!.id]);
+  const user = userResult.rows[0] as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   if (user.outstanding_balance <= 0) { res.status(400).json({ success: false, error: 'No outstanding balance to clear' }); return; }
 
   const paid = Math.min(amount, user.outstanding_balance);
 
   // Settle oldest PREPAID orders first
-  const prepaidOrders = db.prepare(
-    'SELECT * FROM orders WHERE user_id = ? AND status = ? ORDER BY created_at ASC'
-  ).all(user.id, 'PREPAID') as any[];
+  const ordersResult = await db.query(
+    'SELECT * FROM orders WHERE user_id = $1 AND status = $2 ORDER BY created_at ASC',
+    [user.id, 'PREPAID']
+  );
+  const prepaidOrders = ordersResult.rows as any[];
 
   let remaining = paid;
   for (const order of prepaidOrders) {
@@ -57,40 +64,48 @@ router.post('/pay', authenticate, (req: Request, res: Response) => {
     const newOrderOutstanding = orderDue - payOnOrder;
 
     const txId = uuid();
-    db.prepare('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES (?,?,?,?,?,?)')
-      .run(txId, order.id, user.id, order.merchant_id, payOnOrder, 'SETTLEMENT');
+    await db.query(
+      'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)',
+      [txId, order.id, user.id, order.merchant_id, payOnOrder, 'SETTLEMENT']
+    );
 
     if (newOrderOutstanding === 0) {
-      db.prepare('UPDATE orders SET outstanding = 0, status = ? WHERE id = ?').run('COMPLETED', order.id);
-      db.prepare('UPDATE users SET clean_cycles = clean_cycles + 1 WHERE id = ?').run(user.id);
+      await db.query('UPDATE orders SET outstanding = 0, status = $1 WHERE id = $2', ['COMPLETED', order.id]);
+      await db.query('UPDATE users SET clean_cycles = clean_cycles + 1 WHERE id = $1', [user.id]);
     } else {
-      db.prepare('UPDATE orders SET outstanding = ? WHERE id = ?').run(newOrderOutstanding, order.id);
+      await db.query('UPDATE orders SET outstanding = $1 WHERE id = $2', [newOrderOutstanding, order.id]);
     }
     remaining -= payOnOrder;
   }
 
   const newOutstanding = Math.max(0, user.outstanding_balance - paid);
-  db.prepare('UPDATE users SET outstanding_balance = ? WHERE id = ?').run(newOutstanding, user.id);
+  await db.query('UPDATE users SET outstanding_balance = $1 WHERE id = $2', [newOutstanding, user.id]);
 
   // Check for tier upgrade
-  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as any;
-  const nextTier = db.prepare('SELECT * FROM tier_limits WHERE min_cycles <= ? ORDER BY min_cycles DESC LIMIT 1')
-    .get(updatedUser.clean_cycles) as any;
+  const updatedResult = await db.query('SELECT * FROM users WHERE id = $1', [user.id]);
+  const updatedUser = updatedResult.rows[0] as any;
+  const nextTierResult = await db.query(
+    'SELECT * FROM tier_limits WHERE min_cycles <= $1 ORDER BY min_cycles DESC LIMIT 1',
+    [updatedUser.clean_cycles]
+  );
+  const nextTier = nextTierResult.rows[0] as any;
   if (nextTier && nextTier.tier !== updatedUser.tier) {
-    db.prepare('UPDATE users SET tier = ? WHERE id = ?').run(nextTier.tier, updatedUser.id);
+    await db.query('UPDATE users SET tier = $1 WHERE id = $2', [nextTier.tier, updatedUser.id]);
   }
 
   // Check if user should be unfrozen after debt reduction
-  checkAndApplyFreeze(user.id);
+  await checkAndApplyFreeze(user.id);
 
-  const refreshed = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as any;
-  const tierLimit = db.prepare('SELECT * FROM tier_limits WHERE tier = ?').get(refreshed.tier) as any;
-  const effectiveCapData = calculateEffectiveCap(tierLimit, refreshed.id);
+  const refreshedResult = await db.query('SELECT * FROM users WHERE id = $1', [user.id]);
+  const refreshed = refreshedResult.rows[0] as any;
+  const tierLimitResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [refreshed.tier]);
+  const tierLimit = tierLimitResult.rows[0] as any;
+  const effectiveCapData = await calculateEffectiveCap(tierLimit, refreshed.id);
 
   res.json({
     success: true,
     data: { ...refreshed, tierLimit: { ...tierLimit, ...effectiveCapData }, paid, fullyCleared: newOutstanding === 0 }
   });
-});
+}));
 
 export default router;

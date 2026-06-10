@@ -9,28 +9,38 @@ declare global {
   }
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction): void {
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) {
-    res.status(401).json({ success: false, error: 'Missing x-user-id header' });
-    return;
+export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Missing x-user-id header' });
+      return;
+    }
+    const db = getDb();
+    const result = await db.query('SELECT id, tier FROM users WHERE id = $1', [userId]);
+    const user = result.rows[0] as { id: string; tier: string } | undefined;
+    if (!user) {
+      res.status(401).json({ success: false, error: 'User not found' });
+      return;
+    }
+    req.user = { id: user.id, role: user.tier === 'ADMIN' ? 'admin' : 'user' };
+    next();
+  } catch (err) {
+    next(err);
   }
-  const db = getDb();
-  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as any;
-  if (!user) {
-    res.status(401).json({ success: false, error: 'User not found' });
-    return;
-  }
-  req.user = { id: user.id, role: user.id === 'admin' ? 'admin' : 'user' };
-  next();
 }
 
-export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
-  const userId = req.headers['x-user-id'] as string;
-  if (userId) {
-    const db = getDb();
-    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as any;
-    if (user) req.user = { id: user.id, role: 'user' };
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.headers['x-user-id'] as string;
+    if (userId) {
+      const db = getDb();
+      const result = await db.query('SELECT id FROM users WHERE id = $1', [userId]);
+      const user = result.rows[0] as { id: string } | undefined;
+      if (user) req.user = { id: user.id, role: 'user' };
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 }

@@ -1,19 +1,22 @@
 import { getDb } from './database';
 
-export function getCheapestItemPrice(): number {
+export async function getCheapestItemPrice(): Promise<number> {
   const db = getDb();
-  const row = db.prepare('SELECT MIN(price) as min_price FROM menu_items WHERE available = 1').get() as any;
-  return row?.min_price || 500;
+  const result = await db.query('SELECT MIN(price) as min_price FROM menu_items WHERE available = 1');
+  return result.rows[0]?.min_price || 500;
 }
 
-export function getTotalFeesPaid(userId: string): number {
+export async function getTotalFeesPaid(userId: string): Promise<number> {
   const db = getDb();
-  const row = db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id = ? AND type = ?').get(userId, 'FEE') as any;
-  return row?.total || 0;
+  const result = await db.query(
+    'SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id = $1 AND type = $2',
+    [userId, 'FEE']
+  );
+  return result.rows[0]?.total || 0;
 }
 
-export function calculateEffectiveCap(tierLimit: { credit_cap: number }, userId: string): { effectiveCap: number; breakdown: { baseCap: number; feesBonus: number } } {
-  const totalFees = getTotalFeesPaid(userId);
+export async function calculateEffectiveCap(tierLimit: { credit_cap: number }, userId: string): Promise<{ effectiveCap: number; breakdown: { baseCap: number; feesBonus: number } }> {
+  const totalFees = await getTotalFeesPaid(userId);
   const baseCap = tierLimit.credit_cap;
   const feesBonus = totalFees * 2;
   const velocityLimit = baseCap * 3;
@@ -21,20 +24,22 @@ export function calculateEffectiveCap(tierLimit: { credit_cap: number }, userId:
   return { effectiveCap, breakdown: { baseCap, feesBonus } };
 }
 
-export function checkAndApplyFreeze(userId: string): { frozen: boolean; reason?: string } {
+export async function checkAndApplyFreeze(userId: string): Promise<{ frozen: boolean; reason?: string }> {
   const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+  const user = result.rows[0] as any;
   if (!user) return { frozen: false };
 
-  const tierLimit = db.prepare('SELECT * FROM tier_limits WHERE tier = ?').get(user.tier) as any;
+  const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
+  const tierLimit = tierResult.rows[0] as any;
   if (!tierLimit) return { frozen: false };
 
-  const { effectiveCap } = calculateEffectiveCap(tierLimit, userId);
+  const { effectiveCap } = await calculateEffectiveCap(tierLimit, userId);
   const remainingCredit = effectiveCap - user.outstanding_balance;
-  const cheapestPrice = getCheapestItemPrice();
+  const cheapestPrice = await getCheapestItemPrice();
 
   if (remainingCredit < cheapestPrice && user.status !== 'FROZEN') {
-    db.prepare('UPDATE users SET status = ? WHERE id = ?').run('FROZEN', userId);
+    await db.query('UPDATE users SET status = $1 WHERE id = $2', ['FROZEN', userId]);
     return {
       frozen: true,
       reason: `Your remaining credit of ₦${remainingCredit.toLocaleString()} is less than the cheapest available item (₦${cheapestPrice.toLocaleString()}). Clear some debt to continue using Chop First.`
@@ -42,7 +47,7 @@ export function checkAndApplyFreeze(userId: string): { frozen: boolean; reason?:
   }
 
   if (remainingCredit >= cheapestPrice && user.status === 'FROZEN') {
-    db.prepare('UPDATE users SET status = ? WHERE id = ?').run('ACTIVE', userId);
+    await db.query('UPDATE users SET status = $1 WHERE id = $2', ['ACTIVE', userId]);
     return { frozen: false };
   }
 

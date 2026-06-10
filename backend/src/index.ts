@@ -14,7 +14,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-initDb();
+// Wait for DB init before handling requests
+let initPromise: Promise<void> | null = null;
+app.use((_req, res, next) => {
+  if (!initPromise) initPromise = initDb();
+  initPromise.then(() => next()).catch((err) => {
+    console.error('DB init failed', err);
+    res.status(500).json({ success: false, error: 'Database initialization failed' });
+  });
+});
 
 app.use('/api/users', userRoutes);
 app.use('/api/merchants', merchantRoutes);
@@ -28,8 +36,10 @@ app.get('/api/health', (_req, res) => {
 });
 
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => {
-    console.log(`🍽️  Chop First API running on http://localhost:${PORT}`);
+  initDb().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🍽️  Chop First API running on http://localhost:${PORT}`);
+    });
   });
 }
 

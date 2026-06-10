@@ -1,35 +1,36 @@
 import { Router, Request, Response } from 'express';
-import { getDb } from '../database';
+import { getDb, asyncHandler } from '../database';
 import { authenticate } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
 import { checkAndApplyFreeze } from '../helpers';
 
 const router = Router();
 
-router.get('/', authenticate, (req: Request, res: Response) => {
+router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
-  const orders = db.prepare(`
+  const result = await db.query(`
     SELECT o.*, m.name as merchant_name, m.location as merchant_location
     FROM orders o JOIN merchants m ON m.id = o.merchant_id
-    WHERE o.user_id = ? ORDER BY o.created_at DESC
-  `).all(req.user!.id);
-  res.json({ success: true, data: orders });
-});
+    WHERE o.user_id = $1 ORDER BY o.created_at DESC
+  `, [req.user!.id]);
+  res.json({ success: true, data: result.rows });
+}));
 
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id) as any;
+  const orderResult = await db.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+  const order = orderResult.rows[0] as any;
   if (!order) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
-  const items = db.prepare(`
+  const itemsResult = await db.query(`
     SELECT oi.*, mi.name, mi.description FROM order_items oi
     JOIN menu_items mi ON mi.id = oi.menu_item_id
-    WHERE oi.order_id = ?
-  `).all(req.params.id);
-  const txns = db.prepare('SELECT * FROM transactions WHERE order_id = ?').all(req.params.id);
-  res.json({ success: true, data: { ...order, items, transactions: txns } });
-});
+    WHERE oi.order_id = $1
+  `, [req.params.id]);
+  const txnsResult = await db.query('SELECT * FROM transactions WHERE order_id = $1', [req.params.id]);
+  res.json({ success: true, data: { ...order, items: itemsResult.rows, transactions: txnsResult.rows } });
+}));
 
-router.post('/', authenticate, (req: Request, res: Response) => {
+router.post('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const { merchantId, items, downPayment } = req.body;
   if (!merchantId || !items?.length || downPayment == null) {
@@ -37,23 +38,26 @@ router.post('/', authenticate, (req: Request, res: Response) => {
     return;
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.id) as any;
+  const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user!.id]);
+  const user = userResult.rows[0] as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
 
   // Check freeze status based on remaining credit
-  const freezeCheck = checkAndApplyFreeze(user.id);
+  const freezeCheck = await checkAndApplyFreeze(user.id);
   if (freezeCheck.frozen) {
     res.status(403).json({ success: false, error: freezeCheck.reason });
     return;
   }
 
-  const merchant = db.prepare('SELECT * FROM merchants WHERE id = ? AND is_active = 1').get(merchantId) as any;
+  const merchantResult = await db.query('SELECT * FROM merchants WHERE id = $1 AND is_active = 1', [merchantId]);
+  const merchant = merchantResult.rows[0] as any;
   if (!merchant) { res.status(404).json({ success: false, error: 'Merchant not found' }); return; }
 
   let totalCost = 0;
   const orderItems: any[] = [];
   for (const item of items) {
-    const menuItem = db.prepare('SELECT * FROM menu_items WHERE id = ? AND merchant_id = ? AND available = 1').get(item.menuItemId, merchantId) as any;
+    const menuResult = await db.query('SELECT * FROM menu_items WHERE id = $1 AND merchant_id = $2 AND available = 1', [item.menuItemId, merchantId]);
+    const menuItem = menuResult.rows[0] as any;
     if (!menuItem) { res.status(400).json({ success: false, error: `Menu item ${item.menuItemId} unavailable` }); return; }
     const qty = item.quantity || 1;
     totalCost += menuItem.price * qty;
@@ -65,7 +69,8 @@ router.post('/', authenticate, (req: Request, res: Response) => {
     return;
   }
 
-  const tierLimit = db.prepare('SELECT * FROM tier_limits WHERE tier = ?').get(user.tier) as any;
+  const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
+  const tierLimit = tierResult.rows[0] as any;
 
   if (downPayment === totalCost) {
     // Full payment — check if cap is fully exhausted
@@ -78,16 +83,22 @@ router.post('/', authenticate, (req: Request, res: Response) => {
     }
     const orderId = uuid();
     const dueAt = new Date(); dueAt.setDate(dueAt.getDate() + 14);
-    db.prepare('INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,fee,status,due_at) VALUES (?,?,?,?,?,0,0,\'COMPLETED\',?)')
-      .run(orderId, user.id, merchantId, totalCost, downPayment, dueAt.toISOString());
+    await db.query(
+      "INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,fee,status,due_at) VALUES ($1,$2,$3,$4,$5,0,0,'COMPLETED',$6)",
+      [orderId, user.id, merchantId, totalCost, downPayment, dueAt.toISOString()]
+    );
     for (const oi of orderItems) {
-      db.prepare('INSERT INTO order_items (id,order_id,menu_item_id,quantity,unit_price) VALUES (?,?,?,?,?)')
-        .run(uuid(), orderId, oi.id, oi.quantity, oi.price);
+      await db.query(
+        'INSERT INTO order_items (id,order_id,menu_item_id,quantity,unit_price) VALUES ($1,$2,$3,$4,$5)',
+        [uuid(), orderId, oi.id, oi.quantity, oi.price]
+      );
     }
     const txId = uuid();
-    db.prepare('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES (?,?,?,?,?,?)')
-      .run(txId, orderId, user.id, merchantId, downPayment, 'DOWN_PAYMENT');
-    db.prepare('UPDATE merchants SET total_prepaid = total_prepaid + 1, total_revenue = total_revenue + ? WHERE id = ?').run(totalCost, merchantId);
+    await db.query(
+      'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)',
+      [txId, orderId, user.id, merchantId, downPayment, 'DOWN_PAYMENT']
+    );
+    await db.query('UPDATE merchants SET total_prepaid = total_prepaid + 1, total_revenue = total_revenue + $1 WHERE id = $2', [totalCost, merchantId]);
     res.json({ success: true, data: { id: orderId, totalCost, downPayment, outstanding: 0, status: 'COMPLETED', fullPayment: true } });
     return;
   }
@@ -118,21 +129,25 @@ router.post('/', authenticate, (req: Request, res: Response) => {
 
   const orderId = uuid();
   const dueAt = new Date(); dueAt.setDate(dueAt.getDate() + tierLimit.window_days);
-  db.prepare('INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,fee,status,due_at) VALUES (?,?,?,?,?,?,?,?,?)')
-    .run(orderId, user.id, merchantId, totalCost, downPayment, outstanding, fee, 'PREPAID', dueAt.toISOString());
+  await db.query(
+    'INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,fee,status,due_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+    [orderId, user.id, merchantId, totalCost, downPayment, outstanding, fee, 'PREPAID', dueAt.toISOString()]
+  );
 
   for (const oi of orderItems) {
-    db.prepare('INSERT INTO order_items (id,order_id,menu_item_id,quantity,unit_price) VALUES (?,?,?,?,?)')
-      .run(uuid(), orderId, oi.id, oi.quantity, oi.price);
+    await db.query(
+      'INSERT INTO order_items (id,order_id,menu_item_id,quantity,unit_price) VALUES ($1,$2,$3,$4,$5)',
+      [uuid(), orderId, oi.id, oi.quantity, oi.price]
+    );
   }
 
   const txDown = uuid(); const txSub = uuid(); const txFee = uuid();
-  db.prepare('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES (?,?,?,?,?,?)').run(txDown, orderId, user.id, merchantId, downPayment, 'DOWN_PAYMENT');
-  db.prepare('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES (?,?,?,?,?,?)').run(txSub, orderId, user.id, merchantId, outstanding - fee, 'SUBSIDY');
-  if (fee > 0) db.prepare('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES (?,?,?,?,?,?)').run(txFee, orderId, user.id, merchantId, fee, 'FEE');
+  await db.query('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)', [txDown, orderId, user.id, merchantId, downPayment, 'DOWN_PAYMENT']);
+  await db.query('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)', [txSub, orderId, user.id, merchantId, outstanding - fee, 'SUBSIDY']);
+  if (fee > 0) await db.query('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)', [txFee, orderId, user.id, merchantId, fee, 'FEE']);
 
-  db.prepare('UPDATE users SET outstanding_balance = outstanding_balance + ?, total_subsidized = total_subsidized + ? WHERE id = ?').run(outstanding, outstanding - fee, user.id);
-  db.prepare('UPDATE merchants SET total_prepaid = total_prepaid + 1, total_revenue = total_revenue + ? WHERE id = ?').run(totalCost, merchantId);
+  await db.query('UPDATE users SET outstanding_balance = outstanding_balance + $1, total_subsidized = total_subsidized + $2 WHERE id = $3', [outstanding, outstanding - fee, user.id]);
+  await db.query('UPDATE merchants SET total_prepaid = total_prepaid + 1, total_revenue = total_revenue + $1 WHERE id = $2', [totalCost, merchantId]);
 
   res.status(201).json({
     success: true,
@@ -149,11 +164,12 @@ router.post('/', authenticate, (req: Request, res: Response) => {
       tierLimit: tierLimit.max_subsidy
     }
   });
-});
+}));
 
-router.post('/:id/pay', authenticate, (req: Request, res: Response) => {
+router.post('/:id/pay', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
-  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user!.id) as any;
+  const orderResult = await db.query('SELECT * FROM orders WHERE id = $1 AND user_id = $2', [req.params.id, req.user!.id]);
+  const order = orderResult.rows[0] as any;
   if (!order) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
   if (order.status !== 'PREPAID') { res.status(400).json({ success: false, error: 'Order already settled' }); return; }
 
@@ -163,28 +179,29 @@ router.post('/:id/pay', authenticate, (req: Request, res: Response) => {
   const newOutstanding = Math.max(0, order.outstanding - amount);
   const paid = order.outstanding - newOutstanding;
   const txId = uuid();
-  db.prepare('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES (?,?,?,?,?,?)')
-    .run(txId, order.id, order.user_id, order.merchant_id, paid, 'SETTLEMENT');
+  await db.query(
+    'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)',
+    [txId, order.id, order.user_id, order.merchant_id, paid, 'SETTLEMENT']
+  );
 
   if (newOutstanding === 0) {
-    db.prepare('UPDATE orders SET outstanding = 0, status = ? WHERE id = ?').run('COMPLETED', order.id);
-    db.prepare('UPDATE users SET outstanding_balance = MAX(0, outstanding_balance - ?), clean_cycles = clean_cycles + 1 WHERE id = ?')
-      .run(paid, order.user_id);
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id) as any;
-    const nextTier = db.prepare('SELECT * FROM tier_limits WHERE min_cycles <= ? ORDER BY min_cycles DESC LIMIT 1').get(user.clean_cycles) as any;
+    await db.query("UPDATE orders SET outstanding = 0, status = $1 WHERE id = $2", ['COMPLETED', order.id]);
+    await db.query('UPDATE users SET outstanding_balance = GREATEST(0, outstanding_balance - $1), clean_cycles = clean_cycles + 1 WHERE id = $2', [paid, order.user_id]);
+    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [order.user_id]);
+    const user = userResult.rows[0] as any;
+    const nextTierResult = await db.query('SELECT * FROM tier_limits WHERE min_cycles <= $1 ORDER BY min_cycles DESC LIMIT 1', [user.clean_cycles]);
+    const nextTier = nextTierResult.rows[0] as any;
     if (nextTier && nextTier.tier !== user.tier) {
-      db.prepare('UPDATE users SET tier = ? WHERE id = ?').run(nextTier.tier, user.id);
+      await db.query('UPDATE users SET tier = $1 WHERE id = $2', [nextTier.tier, user.id]);
     }
-    // Check if they should be unfrozen after debt reduction
-    checkAndApplyFreeze(order.user_id);
+    await checkAndApplyFreeze(order.user_id);
     res.json({ success: true, data: { status: 'COMPLETED', message: 'Balance fully cleared!' } });
   } else {
-    db.prepare('UPDATE orders SET outstanding = ? WHERE id = ?').run(newOutstanding, order.id);
-    db.prepare('UPDATE users SET outstanding_balance = ? WHERE id = ?').run(newOutstanding, order.user_id);
-    // Check freeze after partial payment too
-    checkAndApplyFreeze(order.user_id);
+    await db.query('UPDATE orders SET outstanding = $1 WHERE id = $2', [newOutstanding, order.id]);
+    await db.query('UPDATE users SET outstanding_balance = $1 WHERE id = $2', [newOutstanding, order.user_id]);
+    await checkAndApplyFreeze(order.user_id);
     res.json({ success: true, data: { status: 'PARTIAL', outstanding: newOutstanding } });
   }
-});
+}));
 
 export default router;
