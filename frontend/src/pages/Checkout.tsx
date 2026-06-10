@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { formatNGN } from '../utils/format';
+import PaymentPortal from '../components/PaymentPortal';
 
 export default function Checkout({ user, setUser }: { user: any; setUser: (u: any) => void }) {
   const location = useLocation();
@@ -13,6 +14,7 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+  const [showPortal, setShowPortal] = useState(false);
 
   if (!state?.items?.length) {
     return (
@@ -38,10 +40,15 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
   const exceedsCreditCap = down < total && newTotalDebt > creditCap;
   const creditRoom = Math.max(0, creditCap - currentDebt);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (down <= 0 || down > total) { setError('Enter a valid down payment amount'); return; }
     if (exceedsPerOrderLimit) { setError(`Outstanding ${formatNGN(outstanding)} exceeds your ${user.tier} per-order limit of ${formatNGN(perOrderLimit)}`); return; }
-    if (exceedsCreditCap) { setError(`Total debt of ${formatNGN(newTotalDebt)} would exceed your ${user.tier} credit cap of ${formatNGN(creditCap)}. You can only accrue ${formatNGN(creditRoom)} more. Increase down payment or clear debt first.`); return; }
+    if (exceedsCreditCap) { setError(`Total debt of ${formatNGN(newTotalDebt)} would exceed your credit cap of ${formatNGN(creditCap)}. You can only accrue ${formatNGN(creditRoom)} more. Increase down payment or clear debt first.`); return; }
+    setShowPortal(true);
+  };
+
+  const confirmPayment = async () => {
+    setShowPortal(false);
     setLoading(true);
     setError('');
     try {
@@ -51,7 +58,6 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
         downPayment: down,
       });
       setResult(res);
-      // Refresh user
       api.getMe().then(setUser).catch(() => {});
     } catch (e: any) {
       setError(e.message);
@@ -104,6 +110,15 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
 
   return (
     <div className="max-w-lg mx-auto">
+      {showPortal && (
+        <PaymentPortal
+          userName={user?.name || 'User'}
+          amount={down}
+          label={`${merchant?.name} — ${formatNGN(down)} down payment`}
+          onConfirm={confirmPayment}
+          onCancel={() => setShowPortal(false)}
+        />
+      )}
       <button onClick={() => navigate(-1)} className="text-sm text-stone-400 hover:text-stone-600 mb-4 flex items-center gap-1">
         ← Back to menu
       </button>

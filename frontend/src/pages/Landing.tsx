@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 
 export default function Landing({ user, onLogin }: { user: any; onLogin: (id: string) => void }) {
   const [info, setInfo] = useState<any>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.getPlatformInfo().then(setInfo).catch(() => {});
@@ -52,9 +53,14 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
                   Go to Dashboard →
                 </Link>
               ) : (
-                <Link to="/login" className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
-                  Try the Demo →
-                </Link>
+                <>
+                  <Link to="/login" className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
+                    Try the Demo →
+                  </Link>
+                  <button onClick={() => navigate('/signup')} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
+                    Sign Up Free
+                  </button>
+                </>
               )}
               <a href="#how" className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-medium text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
                 How It Works
@@ -193,9 +199,14 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
               Go to Dashboard →
             </Link>
           ) : (
-            <Link to="/login" className="inline-flex items-center px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
-              Launch Demo →
-            </Link>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Link to="/login" className="inline-flex items-center px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
+                Launch Demo →
+              </Link>
+              <button onClick={() => navigate('/signup')} className="inline-flex items-center px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
+                Sign Up Free
+              </button>
+            </div>
           )}
         </div>
       </section>

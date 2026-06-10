@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
 const tierStyles: Record<string, string> = {
@@ -68,6 +69,10 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
           </div>
         )}
       </div>
+      <p className="text-center text-sm text-stone-400 mt-6">
+        New to Chop First?{' '}
+        <Link to="/signup" className="text-emerald-600 font-medium hover:underline">Create an account</Link>
+      </p>
     </div>
   );
 }

@@ -10,6 +10,8 @@ import Tasks from './pages/Tasks';
 import MerchantDashboard from './pages/MerchantDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import DemoLogin from './pages/DemoLogin';
+import Signup from './pages/Signup';
+import Approval from './pages/Approval';
 import Profile from './pages/Profile';
 
 export default function App() {
@@ -59,6 +61,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing user={user} onLogin={handleLogin} />} />
       <Route path="/login" element={<DemoLogin onLogin={handleLogin} />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/approval" element={<Approval />} />
       <Route element={<Layout user={user} onLogout={handleLogout} />}>
         <Route path="/dashboard" element={<Dashboard user={user} setUser={setUser} />} />
         <Route path="/menu/:merchantId" element={<MenuPage user={user} />} />

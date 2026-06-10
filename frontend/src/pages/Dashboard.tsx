@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { formatNGN, daysUntil, isOverdue, tierColor, statusColor } from '../utils/format';
+import PaymentPortal from '../components/PaymentPortal';
 
 export default function Dashboard({ user, setUser }: { user: any; setUser: (u: any) => void }) {
   const [merchants, setMerchants] = useState<any[]>([]);
@@ -10,6 +11,8 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
   const [payAmount, setPayAmount] = useState('');
   const [paying, setPaying] = useState(false);
   const [payMsg, setPayMsg] = useState('');
+  const [showPortal, setShowPortal] = useState(false);
+  const [portalAmount, setPortalAmount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,20 +29,25 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
   const hasDebt = (user?.outstanding_balance || 0) > 0;
 
   const handlePay = async (amount: number) => {
+    setPortalAmount(amount);
+    setShowPortal(true);
+  };
+
+  const confirmPayment = async () => {
     setPaying(true);
     setPayMsg('');
     try {
-      const result = await api.payUser(amount);
+      const result = await api.payUser(portalAmount);
       setUser(result);
       if (result.fullyCleared) setPayMsg('Balance fully cleared! 🎉');
       else setPayMsg(`Payment of ${formatNGN(result.paid)} received. ${formatNGN(result.outstanding_balance)} remaining.`);
       setPayAmount('');
-      // Refresh orders
       api.getOrders().then(setOrders).catch(() => {});
     } catch (e: any) {
       setPayMsg(e.message || 'Payment failed');
     } finally {
       setPaying(false);
+      setShowPortal(false);
     }
   };
 
@@ -124,6 +132,16 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
           )}
         </div>
       </div>
+
+      {showPortal && (
+        <PaymentPortal
+          userName={user?.name || 'User'}
+          amount={portalAmount}
+          label={`Clear balance — ${formatNGN(portalAmount)}`}
+          onConfirm={confirmPayment}
+          onCancel={() => setShowPortal(false)}
+        />
+      )}
 
       {/* Clear Balance */}
       {hasDebt && (
