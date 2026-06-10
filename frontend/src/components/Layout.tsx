@@ -20,7 +20,7 @@ export default function Layout({ user, onLogout }: { user: any; onLogout: () => 
     <div className="min-h-screen bg-stone-50 flex flex-col">
       <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-bold text-lg text-stone-800">
+          <Link to={user && !user.id?.startsWith('id_') ? '/dashboard' : '/'} className="flex items-center gap-2 font-bold text-lg text-stone-800">
             <img src="/logo-small.png" alt="Chop First" className="w-8 h-8" />
             <span>Chop First</span>
           </Link>
