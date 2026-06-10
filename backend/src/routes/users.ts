@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
 import { authenticate } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
-import { checkAndApplyFreeze } from '../helpers';
+import bcrypt from 'bcryptjs';
+import { checkAndApplyFreeze, stripPassword } from '../helpers';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response)
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
   const tierLimit = tierResult.rows[0] as any;
-  res.json({ success: true, data: { ...user, tierLimit } });
+  res.json({ success: true, data: { ...stripPassword(user), tierLimit } });
 }));
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -22,27 +23,41 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const result = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
   const user = result.rows[0] as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
-  res.json({ success: true, data: user });
+  res.json({ success: true, data: stripPassword(user) });
 }));
 
 router.post('/login', asyncHandler(async (req: Request, res: Response) => {
-  const { phone } = req.body;
-  if (!phone) { res.status(400).json({ success: false, error: 'Phone number required' }); return; }
+  const { credential, password } = req.body;
+  if (!credential || !password) { res.status(400).json({ success: false, error: 'Phone/email and password required' }); return; }
   const db = getDb();
-  const result = await db.query('SELECT * FROM users WHERE phone = $1', [phone]);
+  const result = await db.query('SELECT * FROM users WHERE phone = $1 OR email = $1', [credential]);
   const user = result.rows[0] as any;
-  if (!user) { res.status(404).json({ success: false, error: 'No account found with that phone number' }); return; }
+  if (!user) { res.status(404).json({ success: false, error: 'No account found with that phone or email' }); return; }
+  if (!user.password_hash) { res.status(401).json({ success: false, error: 'This account uses demo login — sign in via demo accounts' }); return; }
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) { res.status(401).json({ success: false, error: 'Incorrect password' }); return; }
   const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
   const tierLimit = tierResult.rows[0] as any;
-  res.json({ success: true, data: { ...user, tierLimit } });
+  res.json({ success: true, data: { ...stripPassword(user), tierLimit } });
 }));
 
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
-  const { phone, name } = req.body;
-  if (!phone || !name) { res.status(400).json({ success: false, error: 'Phone and name required' }); return; }
+  const { phone, name, email, password } = req.body;
+  if (!phone && !email) { res.status(400).json({ success: false, error: 'Phone or email required' }); return; }
+  if (!name) { res.status(400).json({ success: false, error: 'Name required' }); return; }
+  if (!password) { res.status(400).json({ success: false, error: 'Password required' }); return; }
+  if (password.length < 6) { res.status(400).json({ success: false, error: 'Password must be at least 6 characters' }); return; }
   const db = getDb();
+  if (email) {
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) { res.status(409).json({ success: false, error: 'Email already registered' }); return; }
+  }
   const id = uuid();
-  await db.query('INSERT INTO users (id,phone,name) VALUES ($1,$2,$3)', [id, phone, name]);
+  const password_hash = await bcrypt.hash(password, 10);
+  await db.query(
+    'INSERT INTO users (id,phone,email,name,password_hash) VALUES ($1,$2,$3,$4,$5)',
+    [id, phone || null, email || null, name, password_hash]
+  );
   const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
   const user = result.rows[0];
   res.status(201).json({ success: true, data: user });
@@ -114,7 +129,7 @@ router.post('/pay', authenticate, asyncHandler(async (req: Request, res: Respons
 
   res.json({
     success: true,
-    data: { ...refreshed, tierLimit, paid, fullyCleared: newOutstanding === 0 }
+    data: { ...stripPassword(refreshed), tierLimit, paid, fullyCleared: newOutstanding === 0 }
   });
 }));
 

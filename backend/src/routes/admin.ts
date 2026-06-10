@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
+import { stripPassword } from '../helpers';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.get('/metrics', asyncHandler(async (_req: Request, res: Response) => {
 router.get('/users', asyncHandler(async (_req: Request, res: Response) => {
   const db = getDb();
   const result = await db.query('SELECT * FROM users ORDER BY created_at DESC');
-  res.json({ success: true, data: result.rows });
+  res.json({ success: true, data: result.rows.map(stripPassword) });
 }));
 
 router.post('/users/:id/freeze', asyncHandler(async (req: Request, res: Response) => {
@@ -48,7 +49,7 @@ router.post('/users/:id/freeze', asyncHandler(async (req: Request, res: Response
   const newStatus = user.status === 'FROZEN' ? 'ACTIVE' : 'FROZEN';
   await db.query("UPDATE users SET status = $1, frozen_at = NOW() WHERE id = $2", [newStatus, req.params.id]);
   const updatedResult = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
-  res.json({ success: true, data: updatedResult.rows[0] });
+  res.json({ success: true, data: stripPassword(updatedResult.rows[0]) });
 }));
 
 router.post('/users/:id/credit', asyncHandler(async (req: Request, res: Response) => {
@@ -60,7 +61,7 @@ router.post('/users/:id/credit', asyncHandler(async (req: Request, res: Response
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   await db.query('UPDATE users SET outstanding_balance = GREATEST(0, outstanding_balance - $1) WHERE id = $2', [amount, req.params.id]);
   const updatedResult = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
-  res.json({ success: true, data: updatedResult.rows[0] });
+  res.json({ success: true, data: stripPassword(updatedResult.rows[0]) });
 }));
 
 export default router;

@@ -5,17 +5,27 @@ import { api } from '../api/client';
 export default function Signup() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) { setError('All fields are required'); return; }
+    if (!name.trim()) { setError('Name is required'); return; }
+    if (!phone.trim() && !email.trim()) { setError('Phone or email is required'); return; }
+    if (!password) { setError('Password is required'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true);
     setError('');
     try {
-      const user = await api.createUser({ name: name.trim(), phone: phone.trim() });
+      const user = await api.createUser({
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        password,
+      });
       localStorage.setItem('chopfirst_user', user.id);
       localStorage.setItem('chopfirst_new_user', 'true');
       navigate('/approval', { replace: true });
@@ -51,13 +61,34 @@ export default function Signup() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-stone-600 mb-1 block">Phone Number</label>
+            <label className="text-sm font-medium text-stone-600 mb-1 block">Phone Number <span className="text-stone-400 font-normal">(optional if email provided)</span></label>
             <input
               value={phone}
               onChange={e => setPhone(e.target.value)}
               className="w-full px-4 py-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="e.g. +2348012345678"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-stone-600 mb-1 block">Email <span className="text-stone-400 font-normal">(optional if phone provided)</span></label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full px-4 py-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="ada@example.com"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-stone-600 mb-1 block">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full px-4 py-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="At least 6 characters"
               required
+              minLength={6}
             />
           </div>
           <button

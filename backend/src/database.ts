@@ -42,6 +42,9 @@ export async function initDb(): Promise<void> {
     )
   `);
 
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT`);
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS merchants (
       id TEXT PRIMARY KEY,

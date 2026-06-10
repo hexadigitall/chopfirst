@@ -3,17 +3,18 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
 export default function Login({ onLogin }: { onLogin: (id: string) => void }) {
-  const [phone, setPhone] = useState('');
+  const [credential, setCredential] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim()) { setError('Phone number is required'); return; }
+    if (!credential.trim() || !password) { setError('Phone/email and password required'); return; }
     setLoading(true);
     setError('');
     try {
-      const user = await api.login(phone.trim());
+      const user = await api.login(credential.trim(), password);
       onLogin(user.id);
     } catch (e: any) {
       setError(e.message || 'Login failed');
@@ -37,12 +38,23 @@ export default function Login({ onLogin }: { onLogin: (id: string) => void }) {
             </div>
           )}
           <div>
-            <label className="text-sm font-medium text-stone-600 mb-1 block">Phone Number</label>
+            <label className="text-sm font-medium text-stone-600 mb-1 block">Phone or Email</label>
             <input
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
+              value={credential}
+              onChange={e => setCredential(e.target.value)}
               className="w-full px-4 py-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="e.g. +2348012345678"
+              placeholder="+2348012345678 or email@example.com"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-stone-600 mb-1 block">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full px-4 py-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Enter your password"
               required
             />
           </div>

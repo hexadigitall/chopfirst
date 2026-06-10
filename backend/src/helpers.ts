@@ -1,5 +1,11 @@
 import { getDb } from './database';
 
+export function stripPassword(u: any): any {
+  if (!u) return u;
+  const { password_hash, ...rest } = u;
+  return rest;
+}
+
 export async function getCheapestItemPrice(): Promise<number> {
   const db = getDb();
   const result = await db.query('SELECT MIN(price) as min_price FROM menu_items WHERE available = 1');

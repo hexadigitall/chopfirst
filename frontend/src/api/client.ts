@@ -18,9 +18,9 @@ export const api = {
   // Users
   getMe: () => request<any>('/users/me'),
   getUser: (id: string) => request<any>(`/users/${id}`),
-  login: (phone: string) =>
-    request<any>('/users/login', { method: 'POST', body: JSON.stringify({ phone }) }),
-  createUser: (data: { phone: string; name: string }) =>
+  login: (credential: string, password: string) =>
+    request<any>('/users/login', { method: 'POST', body: JSON.stringify({ credential, password }) }),
+  createUser: (data: { phone?: string; email?: string; name: string; password: string }) =>
     request<any>('/users', { method: 'POST', body: JSON.stringify(data) }),
   payUser: (amount: number) =>
     request<any>('/users/pay', { method: 'POST', body: JSON.stringify({ amount }) }),
