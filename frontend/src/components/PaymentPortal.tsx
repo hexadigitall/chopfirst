@@ -55,7 +55,7 @@ export default function PaymentPortal({
 
   if (step === 'processing') {
     return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-hidden">
         <div className="bg-white rounded-2xl p-5 w-full max-w-[340px] text-center shadow-2xl">
           {cardPreview}
           <div className="animate-pulse space-y-3 mt-4">
@@ -72,7 +72,7 @@ export default function PaymentPortal({
 
   if (step === 'done') {
     return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-hidden">
         <div className="bg-white rounded-2xl p-5 w-full max-w-[340px] text-center shadow-2xl">
           {cardPreview}
           <div className="text-4xl mt-4 mb-2">✅</div>
@@ -84,60 +84,62 @@ export default function PaymentPortal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-[340px] shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="px-6 pt-6">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-hidden">
+      <div className="bg-white rounded-2xl w-full max-w-[340px] shadow-2xl">
+        <div className="px-5 pt-5">
           {cardPreview}
           <h3 className="text-base font-bold text-stone-800 mt-4 mb-1">Confirm Payment</h3>
           <p className="text-xs text-stone-500 mb-4">{label}</p>
         </div>
-        <form onSubmit={handleSubmit} className="px-6 pb-5 space-y-4">
-          <div>
-            <label className="text-[11px] font-medium text-stone-500 mb-1 block">Card Number</label>
+        <form onSubmit={handleSubmit} className="pb-5 space-y-4">
+          <div className="mx-5">
+            <label className="text-[11px] font-medium text-stone-500 mb-1.5 block">Card Number</label>
             <input
               value={cardNumber}
               onChange={e => setCardNumber(e.target.value)}
-              className="w-full px-4 py-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2.5 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
               maxLength={19}
               required
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="mx-5 grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-medium text-stone-500 mb-1 block">Expiry</label>
+              <label className="text-[11px] font-medium text-stone-500 mb-1.5 block">Expiry</label>
               <input
                 value={expiry}
                 onChange={e => setExpiry(e.target.value)}
-                className="w-full px-4 py-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2.5 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="MM/YY"
                 maxLength={5}
                 required
               />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-stone-500 mb-1 block">CVV</label>
+              <label className="text-[11px] font-medium text-stone-500 mb-1.5 block">CVV</label>
               <input
                 value={cvv}
                 onChange={e => setCvv(e.target.value)}
-                className="w-full px-4 py-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2.5 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 maxLength={4}
                 required
               />
             </div>
           </div>
-          <div>
-            <label className="text-[11px] font-medium text-stone-500 mb-1 block">Cardholder Name</label>
-            <div className="w-full px-4 py-3 border border-stone-200 rounded-xl text-sm bg-stone-50 text-stone-700">
+          <div className="mx-5">
+            <label className="text-[11px] font-medium text-stone-500 mb-1.5 block">Cardholder Name</label>
+            <div className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm bg-stone-50 text-stone-700">
               {userName}
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={processing}
-            className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-base hover:bg-emerald-700 transition-colors disabled:bg-emerald-300"
-          >
-            Pay ₦{amount.toLocaleString()}
-          </button>
+          <div className="mx-5">
+            <button
+              type="submit"
+              disabled={processing}
+              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-base hover:bg-emerald-700 transition-colors disabled:bg-emerald-300"
+            >
+              Pay ₦{amount.toLocaleString()}
+            </button>
+          </div>
           <button
             type="button"
             onClick={onCancel}
