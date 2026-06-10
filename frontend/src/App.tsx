@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './api/client';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
@@ -13,6 +13,11 @@ import DemoLogin from './pages/DemoLogin';
 import Signup from './pages/Signup';
 import Approval from './pages/Approval';
 import Profile from './pages/Profile';
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || (window.navigator as any).standalone === true;
+}
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -59,7 +64,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Landing user={user} onLogin={handleLogin} />} />
+      <Route path="/" element={isStandalone() ? <Navigate to="/signup" replace /> : <Landing user={user} onLogin={handleLogin} />} />
       <Route path="/login" element={<DemoLogin onLogin={handleLogin} />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/approval" element={<Approval />} />
