@@ -35,7 +35,7 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
         )}
         {loading ? (
           <div className="text-center text-stone-500">Loading users...</div>
-        ) : !error && (
+        ) : !error && users.length > 0 ? (
           <div className="space-y-3">
             {users.map((u: any) => (
               <button
@@ -67,12 +67,14 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
               </button>
             ))}
           </div>
-        )}
+        ) : !error && users.length === 0 ? (
+          <div className="text-center text-stone-500 py-8">No users found</div>
+        ) : null}
+        <p className="text-center text-sm text-stone-400 mt-6">
+          New to Chop First?{' '}
+          <Link to="/signup" className="text-emerald-600 font-medium hover:underline">Create an account</Link>
+        </p>
       </div>
-      <p className="text-center text-sm text-stone-400 mt-6">
-        New to Chop First?{' '}
-        <Link to="/signup" className="text-emerald-600 font-medium hover:underline">Create an account</Link>
-      </p>
     </div>
   );
 }

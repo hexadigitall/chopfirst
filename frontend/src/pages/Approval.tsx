@@ -1,34 +1,26 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../api/client';
 
 export default function Approval() {
-  const navigate = useNavigate();
   const [step, setStep] = useState<'submitted' | 'reviewing' | 'approved'>('submitted');
 
   useEffect(() => {
     const isNew = localStorage.getItem('chopfirst_new_user');
-    if (!isNew) { navigate('/login', { replace: true }); return; }
+    if (!isNew) { window.location.href = '/login'; return; }
 
     const t1 = setTimeout(() => setStep('reviewing'), 1500);
     const t2 = setTimeout(() => {
       setStep('approved');
       localStorage.removeItem('chopfirst_new_user');
     }, 3500);
-    const t3 = setTimeout(async () => {
+    const t3 = setTimeout(() => {
       const stored = localStorage.getItem('chopfirst_user');
       if (stored) {
-        try {
-          const u = await api.getMe();
-          navigate('/dashboard', { replace: true });
-        } catch {
-          navigate('/login', { replace: true });
-        }
+        window.location.href = '/dashboard';
       }
     }, 5000);
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">

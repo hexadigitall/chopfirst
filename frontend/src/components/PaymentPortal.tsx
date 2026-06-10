@@ -20,7 +20,6 @@ export default function PaymentPortal({
   const [cardNumber, setCardNumber] = useState(CARD_NUMBER);
   const [expiry, setExpiry] = useState(EXPIRY);
   const [cvv, setCvv] = useState(CVV);
-  const [name, setName] = useState(userName);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState<'form' | 'processing' | 'done'>('form');
 
@@ -44,7 +43,7 @@ export default function PaymentPortal({
       <div className="flex justify-between text-[10px]">
         <div>
           <div className="text-emerald-200">Cardholder</div>
-          <div className="font-medium text-xs truncate max-w-36">{name}</div>
+          <div className="font-medium text-xs truncate max-w-36">{userName}</div>
         </div>
         <div className="text-right">
           <div className="text-emerald-200">Expires</div>
@@ -128,12 +127,9 @@ export default function PaymentPortal({
           </div>
           <div>
             <label className="text-[11px] font-medium text-stone-500 mb-0.5 block">Cardholder Name</label>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
-            />
+            <div className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-stone-50 text-stone-700">
+              {userName}
+            </div>
           </div>
           <button
             type="submit"
