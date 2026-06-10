@@ -9,7 +9,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
-  const json = await res.json();
+  let json: any;
+  try {
+    json = await res.json();
+  } catch {
+    const text = await res.text();
+    throw new Error(`Server error (${res.status}): ${text.slice(0, 200)}`);
+  }
   if (!json.success) throw new Error(json.error || 'Request failed');
   return json.data;
 }
