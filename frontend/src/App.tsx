@@ -60,7 +60,13 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={isStandalone() ? <Navigate to="/signup" replace /> : <Landing user={user} onLogin={handleLogin} />} />
+      <Route path="/" element={
+        user && !user.id?.startsWith('id_')
+          ? <Navigate to="/dashboard" replace />
+          : isStandalone()
+            ? <Navigate to="/signup" replace />
+            : <Landing user={user} onLogin={handleLogin} />
+      } />
       <Route path="/login" element={<DemoLogin onLogin={handleLogin} />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/approval" element={<Approval />} />
