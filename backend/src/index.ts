@@ -19,8 +19,12 @@ let initPromise: Promise<void> | null = null;
 app.use((_req, res, next) => {
   if (!initPromise) initPromise = initDb();
   initPromise.then(() => next()).catch((err) => {
-    console.error('DB init failed', err);
-    res.status(500).json({ success: false, error: 'Database initialization failed' });
+    console.error('DB init failed:', err?.message || err);
+    initPromise = null; // Allow retry on next request
+    const message = process.env.DATABASE_URL
+      ? 'Database connection failed. Check that your Supabase project is active and the DATABASE_URL is correct.'
+      : 'DATABASE_URL environment variable is not set. Add it in Vercel dashboard → Settings → Environment Variables.';
+    res.status(500).json({ success: false, error: message });
   });
 });
 

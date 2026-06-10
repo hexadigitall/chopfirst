@@ -6,6 +6,9 @@ let pool: Pool;
 
 export function getDb(): Pool {
   if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is not set. Add it in Vercel dashboard → Settings → Environment Variables.');
+    }
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.DATABASE_URL?.includes('supabase.co')
