@@ -14,15 +14,28 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Wait for DB init before handling requests
+// Health check — always responds, even before DB init
+app.get('/api/health', (_req, res) => {
+  const dbReady = !!process.env.DATABASE_URL;
+  res.json({
+    success: true,
+    data: {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: dbReady ? 'DATABASE_URL configured' : 'DATABASE_URL not set',
+    }
+  });
+});
+
+// Wait for DB init before handling other API requests
 let initPromise: Promise<void> | null = null;
-app.use((_req, res, next) => {
+app.use('/api', (_req, res, next) => {
   if (!initPromise) initPromise = initDb();
   initPromise.then(() => next()).catch((err) => {
     console.error('DB init failed:', err?.message || err);
-    initPromise = null; // Allow retry on next request
+    initPromise = null;
     const message = process.env.DATABASE_URL
-      ? 'Database connection failed. Check that your Supabase project is active and the DATABASE_URL is correct.'
+      ? `Database connection failed: ${err?.message || err}`
       : 'DATABASE_URL environment variable is not set. Add it in Vercel dashboard → Settings → Environment Variables.';
     res.status(500).json({ success: false, error: message });
   });
@@ -34,10 +47,6 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/platform', platformRoutes);
-
-app.get('/api/health', (_req, res) => {
-  res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
-});
 
 if (process.env.VERCEL !== '1') {
   initDb().then(() => {
