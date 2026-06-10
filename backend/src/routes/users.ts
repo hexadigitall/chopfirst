@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getDb } from '../database';
 import { authenticate } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
-import { checkAndApplyFreeze } from '../helpers';
+import { checkAndApplyFreeze, calculateEffectiveCap } from '../helpers';
 
 const router = Router();
 
@@ -12,7 +12,8 @@ router.get('/me', authenticate, (req: Request, res: Response) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.id) as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   const tierLimit = db.prepare('SELECT * FROM tier_limits WHERE tier = ?').get(user.tier) as any;
-  res.json({ success: true, data: { ...user, tierLimit } });
+  const effectiveCapData = calculateEffectiveCap(tierLimit, user.id);
+  res.json({ success: true, data: { ...user, tierLimit: { ...tierLimit, ...effectiveCapData } } });
 });
 
 router.get('/:id', (req: Request, res: Response) => {
@@ -84,10 +85,11 @@ router.post('/pay', authenticate, (req: Request, res: Response) => {
 
   const refreshed = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as any;
   const tierLimit = db.prepare('SELECT * FROM tier_limits WHERE tier = ?').get(refreshed.tier) as any;
+  const effectiveCapData = calculateEffectiveCap(tierLimit, refreshed.id);
 
   res.json({
     success: true,
-    data: { ...refreshed, tierLimit, paid, fullyCleared: newOutstanding === 0 }
+    data: { ...refreshed, tierLimit: { ...tierLimit, ...effectiveCapData }, paid, fullyCleared: newOutstanding === 0 }
   });
 });
 

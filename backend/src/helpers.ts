@@ -6,6 +6,21 @@ export function getCheapestItemPrice(): number {
   return row?.min_price || 500;
 }
 
+export function getTotalFeesPaid(userId: string): number {
+  const db = getDb();
+  const row = db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id = ? AND type = ?').get(userId, 'FEE') as any;
+  return row?.total || 0;
+}
+
+export function calculateEffectiveCap(tierLimit: { credit_cap: number }, userId: string): { effectiveCap: number; breakdown: { baseCap: number; feesBonus: number } } {
+  const totalFees = getTotalFeesPaid(userId);
+  const baseCap = tierLimit.credit_cap;
+  const feesBonus = totalFees * 2;
+  const velocityLimit = baseCap * 3;
+  const effectiveCap = Math.min(baseCap + feesBonus, velocityLimit);
+  return { effectiveCap, breakdown: { baseCap, feesBonus } };
+}
+
 export function checkAndApplyFreeze(userId: string): { frozen: boolean; reason?: string } {
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
@@ -14,7 +29,8 @@ export function checkAndApplyFreeze(userId: string): { frozen: boolean; reason?:
   const tierLimit = db.prepare('SELECT * FROM tier_limits WHERE tier = ?').get(user.tier) as any;
   if (!tierLimit) return { frozen: false };
 
-  const remainingCredit = tierLimit.credit_cap - user.outstanding_balance;
+  const { effectiveCap } = calculateEffectiveCap(tierLimit, userId);
+  const remainingCredit = effectiveCap - user.outstanding_balance;
   const cheapestPrice = getCheapestItemPrice();
 
   if (remainingCredit < cheapestPrice && user.status !== 'FROZEN') {

@@ -107,15 +107,21 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
           <div className="flex justify-between text-sm mb-1">
             <span className="text-emerald-200">Credit Cap Usage</span>
             <span className="font-bold">
-              {formatNGN(user?.outstanding_balance || 0)} / {formatNGN(user?.tierLimit?.credit_cap || 5000)}
+              {formatNGN(user?.outstanding_balance || 0)} / {formatNGN(user?.tierLimit?.effectiveCap || user?.tierLimit?.credit_cap || 5000)}
             </span>
           </div>
           <div className="bg-emerald-600 rounded-full h-2 overflow-hidden">
             <div
               className="h-full rounded-full bg-white transition-all"
-              style={{ width: `${Math.min(100, ((user?.outstanding_balance || 0) / (user?.tierLimit?.credit_cap || 5000)) * 100)}%` }}
+              style={{ width: `${Math.min(100, ((user?.outstanding_balance || 0) / (user?.tierLimit?.effectiveCap || user?.tierLimit?.credit_cap || 5000)) * 100)}%` }}
             />
           </div>
+          {user?.tierLimit?.breakdown?.feesBonus > 0 && (
+            <div className="flex justify-between text-xs text-emerald-300 mt-1">
+              <span>Tier base: {formatNGN(user?.tierLimit?.breakdown?.baseCap)}</span>
+              <span>+{formatNGN(user?.tierLimit?.breakdown?.feesBonus)} from fees paid</span>
+            </div>
+          )}
         </div>
       </div>
 

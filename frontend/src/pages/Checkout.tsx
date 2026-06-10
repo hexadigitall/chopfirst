@@ -31,7 +31,7 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
   const fee = down < total ? Math.round((total - down) * 0.10 * 100) / 100 : 0;
   const outstanding = Math.max(0, total - down + fee);
   const perOrderLimit = user?.tierLimit?.max_subsidy || 2500;
-  const creditCap = user?.tierLimit?.credit_cap || 5000;
+  const creditCap = user?.tierLimit?.effectiveCap || user?.tierLimit?.credit_cap || 5000;
   const currentDebt = user?.outstanding_balance || 0;
   const newTotalDebt = currentDebt + outstanding;
   const exceedsPerOrderLimit = outstanding > perOrderLimit;
@@ -187,9 +187,15 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
                   <span className={`font-bold ${exceedsCreditCap ? 'text-red-500' : 'text-amber-600'}`}>{formatNGN(newTotalDebt)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-stone-400">
-                  <span>{user?.tier} credit cap</span>
+                  <span>Credit cap</span>
                   <span>{formatNGN(creditCap)}</span>
                 </div>
+                {user?.tierLimit?.breakdown?.feesBonus > 0 && (
+                  <div className="flex justify-between text-xs text-emerald-600">
+                    <span>Tier base: {formatNGN(user?.tierLimit?.breakdown?.baseCap)}</span>
+                    <span>+{formatNGN(user?.tierLimit?.breakdown?.feesBonus)} fees earned</span>
+                  </div>
+                )}
                 {/* Credit cap gauge */}
                 <div className="mt-2 bg-stone-200 rounded-full h-2 overflow-hidden">
                   <div
