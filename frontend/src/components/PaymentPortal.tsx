@@ -86,18 +86,18 @@ export default function PaymentPortal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-[340px] shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-5 pb-0">
+        <div className="px-6 pt-6">
           {cardPreview}
           <h3 className="text-base font-bold text-stone-800 mt-4 mb-1">Confirm Payment</h3>
           <p className="text-xs text-stone-500 mb-4">{label}</p>
         </div>
-        <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-3">
+        <form onSubmit={handleSubmit} className="px-6 pb-5 space-y-4">
           <div>
             <label className="text-[11px] font-medium text-stone-500 mb-1 block">Card Number</label>
             <input
               value={cardNumber}
               onChange={e => setCardNumber(e.target.value)}
-              className="w-full px-3 py-2.5 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
               maxLength={19}
               required
             />
@@ -108,7 +108,7 @@ export default function PaymentPortal({
               <input
                 value={expiry}
                 onChange={e => setExpiry(e.target.value)}
-                className="w-full px-3 py-2.5 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-4 py-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="MM/YY"
                 maxLength={5}
                 required
@@ -119,7 +119,7 @@ export default function PaymentPortal({
               <input
                 value={cvv}
                 onChange={e => setCvv(e.target.value)}
-                className="w-full px-3 py-2.5 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-4 py-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 maxLength={4}
                 required
               />
@@ -127,14 +127,14 @@ export default function PaymentPortal({
           </div>
           <div>
             <label className="text-[11px] font-medium text-stone-500 mb-1 block">Cardholder Name</label>
-            <div className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm bg-stone-50 text-stone-700">
+            <div className="w-full px-4 py-3 border border-stone-200 rounded-xl text-sm bg-stone-50 text-stone-700">
               {userName}
             </div>
           </div>
           <button
             type="submit"
             disabled={processing}
-            className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-base hover:bg-emerald-700 transition-colors disabled:bg-emerald-300"
+            className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-base hover:bg-emerald-700 transition-colors disabled:bg-emerald-300"
           >
             Pay ₦{amount.toLocaleString()}
           </button>
