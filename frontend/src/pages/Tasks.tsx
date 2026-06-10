@@ -82,7 +82,7 @@ export default function Tasks({ user, setUser }: { user: any; setUser: (u: any) 
                     <button
                       onClick={() => handleComplete(t.id)}
                       disabled={loading === t.id}
-                      className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:bg-amber-300 transition-colors"
                     >
                       {loading === t.id ? '...' : 'Mark Complete'}
                     </button>
@@ -102,7 +102,7 @@ export default function Tasks({ user, setUser }: { user: any; setUser: (u: any) 
         <h2 className="font-bold text-stone-600 mb-3">Available Tasks</h2>
         <div className="space-y-3">
           {tasks.length === 0 && (
-            <div className="text-center py-8 text-stone-400">
+            <div className="text-center py-8 text-stone-500">
               <div className="text-4xl mb-2">✅</div>
               <p>All tasks are assigned. Check back later!</p>
             </div>
@@ -114,7 +114,7 @@ export default function Tasks({ user, setUser }: { user: any; setUser: (u: any) 
                   <div className="text-2xl">{categoryIcon(t.category)}</div>
                   <div>
                     <h3 className="font-semibold">{t.title}</h3>
-                    <p className="text-sm text-stone-400">{t.description}</p>
+                    <p className="text-sm text-stone-500">{t.description}</p>
                     <div className="flex gap-2 mt-2">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">{t.category}</span>
                       {t.merchant_name && (
@@ -129,7 +129,7 @@ export default function Tasks({ user, setUser }: { user: any; setUser: (u: any) 
                 <button
                   onClick={() => handleAssign(t.id)}
                   disabled={loading === t.id}
-                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors shrink-0"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:bg-emerald-300 transition-colors shrink-0"
                 >
                   {loading === t.id ? '...' : 'Assign'}
                 </button>

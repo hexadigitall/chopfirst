@@ -33,7 +33,7 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
           </div>
         )}
         {loading ? (
-          <div className="text-center text-stone-400 animate-pulse">Loading users...</div>
+          <div className="text-center text-stone-500">Loading users...</div>
         ) : !error && (
           <div className="space-y-3">
             {users.map((u: any) => (
@@ -47,7 +47,7 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
                 </div>
                 <div className="flex-1">
                   <div className="font-semibold text-stone-800">{u.name}</div>
-                  <div className="text-sm text-stone-400">{u.phone}</div>
+                  <div className="text-sm text-stone-500">{u.phone}</div>
                   <div className="flex gap-2 mt-1">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tierStyles[u.tier] || ''}`}>
                       {u.tier}
@@ -62,7 +62,7 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
                     )}
                   </div>
                 </div>
-                <div className="text-stone-300 group-hover:text-emerald-500 transition-colors">→</div>
+                <div className="text-stone-400 group-hover:text-emerald-500 transition-colors">→</div>
               </button>
             ))}
           </div>

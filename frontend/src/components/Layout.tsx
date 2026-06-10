@@ -57,7 +57,7 @@ export default function Layout({ user, onLogout }: { user: any; onLogout: () => 
                 'flex-1 text-center py-2 text-xs font-medium transition-colors',
                 location.pathname === item.path
                   ? 'text-emerald-700 border-b-2 border-emerald-500'
-                  : 'text-stone-400'
+                  : 'text-stone-500'
               )}
             >
               <div className="text-lg">{item.icon}</div>

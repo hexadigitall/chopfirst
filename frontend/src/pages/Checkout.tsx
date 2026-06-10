@@ -225,13 +225,13 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
       <button
         onClick={handleSubmit}
         disabled={loading || down <= 0 || down > total || exceedsPerOrderLimit || exceedsCreditCap}
-        className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
+        className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed shadow-lg"
       >
         {loading ? 'Processing...' : down >= total ? 'Pay & Complete Order' : `Pay ${formatNGN(down)} — Start Order`}
       </button>
 
       {down < total && (
-        <p className="text-center text-xs text-stone-400 mt-3">
+        <p className="text-center text-xs text-stone-500 mt-3">
           Chop First will pay the remaining {formatNGN(total - down)} to the merchant immediately. 
           You have {user?.tierLimit?.window_days || 7} days to repay {formatNGN(outstanding)}.
         </p>

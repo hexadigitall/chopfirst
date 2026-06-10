@@ -13,7 +13,7 @@ export default function MenuPage({ user }: { user: any }) {
     if (merchantId) api.getMerchant(merchantId).then(setMerchant).catch(() => navigate('/dashboard'));
   }, [merchantId]);
 
-  if (!merchant) return <div className="text-center py-12 text-stone-400">Loading...</div>;
+  if (!merchant) return <div className="text-center py-12 text-stone-500">Loading...</div>;
 
   const addItem = (item: any) => {
     setCart(prev => {
@@ -45,7 +45,7 @@ export default function MenuPage({ user }: { user: any }) {
 
   return (
     <div>
-      <button onClick={() => navigate('/dashboard')} className="text-sm text-stone-400 hover:text-stone-600 mb-4 flex items-center gap-1">
+      <button onClick={() => navigate('/dashboard')} className="text-sm text-stone-500 hover:text-stone-700 mb-4 flex items-center gap-1">
         ← Back to restaurants
       </button>
 
@@ -55,7 +55,7 @@ export default function MenuPage({ user }: { user: any }) {
         </div>
         <div>
           <h1 className="text-2xl font-bold">{merchant.name}</h1>
-          <p className="text-stone-400">{merchant.location}</p>
+          <p className="text-stone-500">{merchant.location}</p>
           <p className="text-sm text-emerald-600 font-medium">{merchant.stats?.total_orders || 0} orders fulfilled</p>
         </div>
       </div>
@@ -69,7 +69,7 @@ export default function MenuPage({ user }: { user: any }) {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h3 className="font-semibold">{item.name}</h3>
-                  {item.description && <p className="text-sm text-stone-400">{item.description}</p>}
+                  {item.description && <p className="text-sm text-stone-500">{item.description}</p>}
                 </div>
                 <div className="text-lg font-bold text-emerald-700">{formatNGN(item.price)}</div>
               </div>
@@ -97,10 +97,10 @@ export default function MenuPage({ user }: { user: any }) {
 
       {/* Floating Cart */}
       {cartItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div>
-              <div className="text-sm text-stone-400">{cartItems.reduce((s, c) => s + c.qty, 0)} items</div>
+              <div className="text-sm text-stone-500">{cartItems.reduce((s, c) => s + c.qty, 0)} items</div>
               <div className="text-xl font-bold">{formatNGN(cartTotal)}</div>
             </div>
             <button

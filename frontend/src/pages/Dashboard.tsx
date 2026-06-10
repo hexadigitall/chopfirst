@@ -130,7 +130,7 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
             <button
               onClick={() => handlePay(user?.outstanding_balance)}
               disabled={paying}
-              className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+              className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:bg-emerald-300 transition-colors"
             >
               {paying ? 'Processing...' : `Pay in Full (${formatNGN(user?.outstanding_balance)})`}
             </button>
@@ -147,7 +147,7 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
               <button
                 onClick={() => handlePay(Number(payAmount))}
                 disabled={paying || !payAmount || Number(payAmount) <= 0}
-                className="px-5 py-2.5 bg-stone-700 text-white rounded-xl font-medium hover:bg-stone-800 disabled:opacity-50 transition-colors"
+                className="px-5 py-2.5 bg-stone-700 text-white rounded-xl font-medium hover:bg-stone-800 disabled:bg-stone-400 transition-colors"
               >
                 Pay
               </button>
@@ -177,7 +177,7 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
                   {m.name.includes('Mama') ? '🍲' : m.name.includes('Buka') ? '🥘' : '🥩'}
                 </div>
                 <h3 className="font-bold text-stone-800 group-hover:text-emerald-700 transition-colors">{m.name}</h3>
-                <p className="text-sm text-stone-400">{m.location}</p>
+                <p className="text-sm text-stone-500">{m.location}</p>
                 <div className="mt-2 flex items-center gap-2 text-xs text-emerald-600 font-medium">
                   <span>{m.total_prepaid} meals served</span>
                   <span>→</span>
@@ -198,7 +198,7 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="font-semibold">{o.merchant_name}</div>
-                    <div className="text-sm text-stone-400">
+                    <div className="text-sm text-stone-500">
                       {formatNGN(o.total_cost)} · {o.status}
                     </div>
                   </div>
@@ -226,15 +226,15 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-xl font-bold text-stone-800">{info.stats.totalMealsServed}</div>
-              <div className="text-xs text-stone-400">Meals Served</div>
+              <div className="text-xs text-stone-500">Meals Served</div>
             </div>
             <div>
               <div className="text-xl font-bold text-stone-800">{info.stats.activeMerchants}</div>
-              <div className="text-xs text-stone-400">Merchants</div>
+              <div className="text-xs text-stone-500">Merchants</div>
             </div>
             <div>
               <div className="text-xl font-bold text-stone-800">{formatNGN(info.stats.totalSubsidyDispersed)}</div>
-              <div className="text-xs text-stone-400">Total Subsidy</div>
+              <div className="text-xs text-stone-500">Total Subsidy</div>
             </div>
           </div>
         </div>
