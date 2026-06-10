@@ -57,7 +57,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <img src="/logo.png" alt="Chop First" className="w-16 animate-pulse" />
+        <img src="/logo-white.png" alt="Chop First" className="w-16 animate-pulse" />
       </div>
     );
   }
