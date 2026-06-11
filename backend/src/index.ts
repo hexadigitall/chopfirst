@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { initDb } from './database';
 import userRoutes from './routes/users';
@@ -47,6 +47,12 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/platform', platformRoutes);
+
+// Error middleware — catch all and return JSON
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err?.message || err);
+  res.status(500).json({ success: false, error: err?.message || 'Internal server error' });
+});
 
 if (process.env.VERCEL !== '1') {
   initDb().then(() => {
