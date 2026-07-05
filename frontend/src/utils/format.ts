@@ -16,6 +16,8 @@ export function tierColor(tier: string): string {
   switch (tier) {
     case 'UNVERIFIED': return 'bg-stone-200 text-stone-700';
     case 'VERIFIED': return 'bg-emerald-100 text-emerald-800';
+    case 'TRUSTED': return 'bg-sky-100 text-sky-800';
+    case 'ADVANCED': return 'bg-violet-100 text-violet-800';
     case 'COMMUNITY': return 'bg-amber-100 text-amber-800';
     default: return 'bg-stone-100 text-stone-600';
   }

@@ -141,11 +141,13 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
               Your subsidy power grows with every clean settlement cycle. The system rewards reliability.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
             {[
-              { name: 'Unverified', tier: 'UNVERIFIED', limit: '₦2,500', cap: '₦5,000', window: '7 days', cycles: '0–2', color: 'bg-stone-100 border-stone-300', textColor: 'text-stone-700', icon: '🌱' },
-              { name: 'Verified', tier: 'VERIFIED', limit: '₦10,000', cap: '₦30,000', window: '14 days', cycles: '3–5', color: 'bg-emerald-50 border-emerald-300', textColor: 'text-emerald-700', icon: '⭐' },
-              { name: 'Community', tier: 'COMMUNITY', limit: '₦25,000', cap: '₦150,000', window: '14 days', cycles: '6+', color: 'bg-amber-50 border-amber-300', textColor: 'text-amber-700', icon: '🏆' },
+              { name: 'Unverified', tier: 'UNVERIFIED', limit: '₦2,500', cap: '₦5,000', window: '7 days', cycles: '10–19', color: 'bg-stone-100 border-stone-300', textColor: 'text-stone-700', icon: '🌱' },
+              { name: 'Verified', tier: 'VERIFIED', limit: '₦10,000', cap: '₦30,000', window: '14 days', cycles: '20–29', color: 'bg-emerald-50 border-emerald-300', textColor: 'text-emerald-700', icon: '⭐' },
+              { name: 'Trusted', tier: 'TRUSTED', limit: '₦15,000', cap: '₦50,000', window: '14 days', cycles: '30–39', color: 'bg-sky-50 border-sky-300', textColor: 'text-sky-700', icon: '🔒' },
+              { name: 'Advanced', tier: 'ADVANCED', limit: '₦20,000', cap: '₦100,000', window: '14 days', cycles: '40–49', color: 'bg-violet-50 border-violet-300', textColor: 'text-violet-700', icon: '💎' },
+              { name: 'Community', tier: 'COMMUNITY', limit: '₦25,000', cap: '₦150,000', window: '14 days', cycles: '50+', color: 'bg-amber-50 border-amber-300', textColor: 'text-amber-700', icon: '🏆' },
             ].map(t => (
               <div key={t.name} className={`rounded-2xl border-2 p-6 ${t.color}`}>
                 <div className="text-3xl mb-3">{t.icon}</div>

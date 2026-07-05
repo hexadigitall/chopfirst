@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
-import { formatNGN } from '../utils/format';
+import { formatNGN, tierColor } from '../utils/format';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const COLORS = ['#d6d3d1', '#34d399', '#f59e0b'];
@@ -136,16 +136,12 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {users.map((u: any) => {
-                const cap = u.tier === 'UNVERIFIED' ? 5000 : u.tier === 'VERIFIED' ? 30000 : 150000;
+                const cap = u.tier === 'UNVERIFIED' ? 5000 : u.tier === 'VERIFIED' ? 30000 : u.tier === 'TRUSTED' ? 50000 : u.tier === 'ADVANCED' ? 100000 : 150000;
                 return (
                 <tr key={u.id} className="border-b border-stone-100">
                   <td className="py-3 font-medium">{u.name}</td>
                   <td className="py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium
-                      ${u.tier === 'UNVERIFIED' ? 'bg-stone-100 text-stone-600' : ''}
-                      ${u.tier === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' : ''}
-                      ${u.tier === 'COMMUNITY' ? 'bg-amber-100 text-amber-700' : ''}
-                    `}>{u.tier}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tierColor(u.tier)}`}>{u.tier}</span>
                   </td>
                   <td className="py-3">
                     <span className={`font-medium ${u.status === 'ACTIVE' ? 'text-emerald-600' : u.status === 'FROZEN' ? 'text-red-600' : 'text-stone-400'}`}>

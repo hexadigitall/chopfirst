@@ -5,6 +5,8 @@ import { api } from '../api/client';
 const tierStyles: Record<string, string> = {
   UNVERIFIED: 'bg-stone-100 text-stone-600',
   VERIFIED: 'bg-emerald-100 text-emerald-700',
+  TRUSTED: 'bg-sky-100 text-sky-700',
+  ADVANCED: 'bg-violet-100 text-violet-700',
   COMMUNITY: 'bg-amber-100 text-amber-700',
 };
 
