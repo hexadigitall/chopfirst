@@ -55,8 +55,8 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const id = uuid();
   const password_hash = await bcrypt.hash(password, 10);
   await db.query(
-    'INSERT INTO users (id,phone,email,name,password_hash) VALUES ($1,$2,$3,$4,$5)',
-    [id, phone || null, email || null, name, password_hash]
+    'INSERT INTO users (id,phone,email,name,password_hash,clean_cycles) VALUES ($1,$2,$3,$4,$5,$6)',
+    [id, phone || null, email || null, name, password_hash, 10]
   );
   const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
   const user = result.rows[0];
