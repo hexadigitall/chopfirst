@@ -16,9 +16,11 @@ export async function seed(db: Pool): Promise<void> {
   await db.query('DELETE FROM tier_limits');
 
   const tiers = [
-    { tier: 'UNVERIFIED', max_subsidy: 2500, window_days: 7, min_cycles: 0, credit_cap: 50000 },
-    { tier: 'VERIFIED', max_subsidy: 10000, window_days: 14, min_cycles: 20, credit_cap: 100000 },
-    { tier: 'COMMUNITY', max_subsidy: 25000, window_days: 14, min_cycles: 40, credit_cap: 150000 },
+    { tier: 'UNVERIFIED', max_subsidy: 2500, window_days: 7, min_cycles: 0, credit_cap: 5000 },
+    { tier: 'VERIFIED', max_subsidy: 10000, window_days: 14, min_cycles: 20, credit_cap: 30000 },
+    { tier: 'TRUSTED', max_subsidy: 15000, window_days: 14, min_cycles: 30, credit_cap: 50000 },
+    { tier: 'ADVANCED', max_subsidy: 20000, window_days: 14, min_cycles: 40, credit_cap: 100000 },
+    { tier: 'COMMUNITY', max_subsidy: 25000, window_days: 14, min_cycles: 50, credit_cap: 150000 },
   ];
   for (const t of tiers) {
     await db.query('INSERT INTO tier_limits VALUES ($1,$2,$3,$4,$5)', [t.tier, t.max_subsidy, t.window_days, t.min_cycles, t.credit_cap]);
@@ -27,7 +29,7 @@ export async function seed(db: Pool): Promise<void> {
   const users = [
     { phone: '+2348010000001', name: 'Chidi Okonkwo', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 12, outstanding: 0, total: 1500, wallet: '0x0000000000000000000000000000000000000001', kind: 10 },
     { phone: '+2348010000002', name: 'Amina Bello', tier: 'VERIFIED', status: 'ACTIVE', cycles: 25, outstanding: 1050, total: 8500, wallet: '0x0000000000000000000000000000000000000002', kind: 45 },
-    { phone: '+2348010000003', name: 'Femi Adeyemi', tier: 'COMMUNITY', status: 'ACTIVE', cycles: 45, outstanding: 0, total: 22000, wallet: '0x0000000000000000000000000000000000000003', kind: 120 },
+    { phone: '+2348010000003', name: 'Femi Adeyemi', tier: 'ADVANCED', status: 'ACTIVE', cycles: 45, outstanding: 0, total: 22000, wallet: '0x0000000000000000000000000000000000000003', kind: 120 },
     { phone: '+2348010000004', name: 'Nkechi Eze', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 15, outstanding: 4800, total: 7200, wallet: '0x0000000000000000000000000000000000000004', kind: 10 },
     { phone: '+2348010000005', name: 'Tunde Bakare', tier: 'VERIFIED', status: 'ACTIVE', cycles: 22, outstanding: 500, total: 6200, wallet: '0x0000000000000000000000000000000000000005', kind: 30 },
   ].map(u => ({ ...u, id: id() }));
