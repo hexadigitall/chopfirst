@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireRealUser } from '../middleware/auth';
+import { validate, schemas } from '../middleware/validate';
 import { v4 as uuid } from 'uuid';
 import { checkAndApplyFreeze } from '../helpers';
 
@@ -16,7 +17,7 @@ router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) =
   res.json({ success: true, data: result.rows });
 }));
 
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const orderResult = await db.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
   const order = orderResult.rows[0] as any;
@@ -30,13 +31,9 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: { ...order, items: itemsResult.rows, transactions: txnsResult.rows } });
 }));
 
-router.post('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authenticate, requireRealUser, validate(schemas.createOrder), asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const { merchantId, items, downPayment } = req.body;
-  if (!merchantId || !items?.length || downPayment == null) {
-    res.status(400).json({ success: false, error: 'merchantId, items, and downPayment required' });
-    return;
-  }
 
   const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user!.id]);
   const user = userResult.rows[0] as any;
@@ -166,7 +163,7 @@ router.post('/', authenticate, asyncHandler(async (req: Request, res: Response) 
   });
 }));
 
-router.post('/:id/pay', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/pay', authenticate, requireRealUser, validate(schemas.orderPay), asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const orderResult = await db.query('SELECT * FROM orders WHERE id = $1 AND user_id = $2', [req.params.id, req.user!.id]);
   const order = orderResult.rows[0] as any;
@@ -174,7 +171,6 @@ router.post('/:id/pay', authenticate, asyncHandler(async (req: Request, res: Res
   if (order.status !== 'PREPAID') { res.status(400).json({ success: false, error: 'Order already settled' }); return; }
 
   const { amount } = req.body;
-  if (!amount || amount <= 0) { res.status(400).json({ success: false, error: 'Invalid amount' }); return; }
 
   const newOutstanding = Math.max(0, order.outstanding - amount);
   const paid = order.outstanding - newOutstanding;

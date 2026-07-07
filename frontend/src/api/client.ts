@@ -1,14 +1,17 @@
 const BASE = import.meta.env.VITE_API_URL || '/api';
 
+function getToken(): string {
+  return localStorage.getItem('chopfirst_token') || '';
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-user-id': localStorage.getItem('chopfirst_user') || '',
-      ...options?.headers,
-    },
-  });
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${BASE}${path}`, { ...options, headers });
   const text = await res.text();
   let json: any;
   try {
@@ -17,13 +20,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(`Server error (${res.status}): ${text.slice(0, 200)}`);
   }
   if (!json.success) throw new Error(json.error || 'Request failed');
+  if (json.token) localStorage.setItem('chopfirst_token', json.token);
   return json.data;
 }
 
 export const api = {
+  // Auth
+  googleLogin: (googleToken: string) =>
+    request<any>('/auth/google', { method: 'POST', body: JSON.stringify({ googleToken }) }),
+
   // Users
   getMe: () => request<any>('/users/me'),
   getUser: (id: string) => request<any>(`/users/${id}`),
+  getDemoUsers: () => request<any[]>('/users/demo-list'),
+  demoLogin: (userId: string) =>
+    request<any>('/users/demo-login', { method: 'POST', body: JSON.stringify({ userId }) }),
   login: (credential: string, password: string) =>
     request<any>('/users/login', { method: 'POST', body: JSON.stringify({ credential, password }) }),
   createUser: (data: { phone?: string; email?: string; name: string; password: string }) =>

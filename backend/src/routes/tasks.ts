@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireAdmin, requireRealUser } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
 
 const router = Router();
@@ -16,7 +16,7 @@ router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) =
   res.json({ success: true, data: result.rows });
 }));
 
-router.get('/all', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/all', authenticate, asyncHandler(async (_req: Request, res: Response) => {
   const db = getDb();
   const result = await db.query(`
     SELECT t.*, u.name as assigned_user, m.name as merchant_name
@@ -28,7 +28,7 @@ router.get('/all', asyncHandler(async (_req: Request, res: Response) => {
   res.json({ success: true, data: result.rows });
 }));
 
-router.post('/:id/assign', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/assign', authenticate, requireRealUser, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const taskResult = await db.query("SELECT * FROM tasks WHERE id = $1 AND status = $2", [req.params.id, 'OPEN']);
   const task = taskResult.rows[0] as any;
@@ -38,7 +38,7 @@ router.post('/:id/assign', authenticate, asyncHandler(async (req: Request, res: 
   res.json({ success: true, data: updatedResult.rows[0] });
 }));
 
-router.post('/:id/complete', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/complete', authenticate, requireRealUser, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const taskResult = await db.query("SELECT * FROM tasks WHERE id = $1 AND assigned_to = $2 AND status = $3", [req.params.id, req.user!.id, 'ASSIGNED']);
   const task = taskResult.rows[0] as any;
@@ -47,7 +47,7 @@ router.post('/:id/complete', authenticate, asyncHandler(async (req: Request, res
   res.json({ success: true, data: { message: 'Task submitted for verification' } });
 }));
 
-router.post('/:id/verify', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/verify', authenticate, requireRealUser, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const taskResult = await db.query("SELECT * FROM tasks WHERE id = $1 AND status = $2", [req.params.id, 'COMPLETED_PENDING']);
   const task = taskResult.rows[0] as any;

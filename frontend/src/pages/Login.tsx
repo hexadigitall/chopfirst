@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { api } from '../api/client';
 
 export default function Login({ onLogin }: { onLogin: (id: string) => void }) {
@@ -18,6 +19,19 @@ export default function Login({ onLogin }: { onLogin: (id: string) => void }) {
       onLogin(user.id);
     } catch (e: any) {
       setError(e.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setError('');
+    setLoading(true);
+    try {
+      const data = await api.googleLogin(credentialResponse.credential);
+      onLogin(data.id);
+    } catch (e: any) {
+      setError(e.message || 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
@@ -65,6 +79,23 @@ export default function Login({ onLogin }: { onLogin: (id: string) => void }) {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-stone-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-stone-400">or</span>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google sign-in failed')}
+              size="large"
+              shape="rectangular"
+              text="signin_with"
+            />
+          </div>
           <p className="text-center text-sm text-stone-400">
             Don't have an account?{' '}
             <Link to="/signup" className="text-emerald-600 font-medium hover:underline">Create one</Link>

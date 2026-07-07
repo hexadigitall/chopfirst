@@ -9,8 +9,8 @@ export default function MerchantDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getMerchants().then(setMerchants).catch(() => {});
-    api.getAllTasks().then(setTasks).catch(() => {});
+    api.getMerchants().then(setMerchants).catch((e) => setError(e.message));
+    api.getAllTasks().then(setTasks).catch((e) => setError(e.message));
   }, []);
 
   const loadMerchant = (id: string) => {
@@ -24,10 +24,10 @@ export default function MerchantDashboard() {
   const handleVerify = async (taskId: string) => {
     try {
       await api.verifyTask(taskId);
-      const updated = tasks.filter((t: any) => t.id !== taskId);
+      loadMerchant(selected?.id);
+      const updated = await api.getAllTasks();
       setTasks(updated);
-      api.getAllTasks().then(setTasks).catch(() => {});
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { setError(e.message); }
   };
 
   return (

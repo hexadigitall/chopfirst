@@ -16,7 +16,7 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getAdminUsers()
+    api.getDemoUsers()
       .then(setUsers)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -42,7 +42,7 @@ export default function DemoLogin({ onLogin }: { onLogin: (id: string) => void }
             {users.map((u: any) => (
               <button
                 key={u.id}
-                onClick={() => onLogin(u.id)}
+                onClick={async () => { await api.demoLogin(u.id); onLogin(u.id); }}
                 className="w-full text-left p-4 rounded-xl border border-stone-200 bg-white hover:border-emerald-300 hover:shadow-md transition-all flex items-center gap-4 group"
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold group-hover:bg-emerald-500 group-hover:text-white transition-colors">

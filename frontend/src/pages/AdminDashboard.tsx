@@ -10,32 +10,39 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [creditTarget, setCreditTarget] = useState<string | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
 
   const load = () => {
-    api.getMetrics().then(setMetrics).catch(() => {});
-    api.getAdminUsers().then(setUsers).catch(() => {});
-    api.getAllTasks().then(setTasks).catch(() => {});
+    setError('');
+    api.getMetrics().then(setMetrics).catch((e) => setError(e.message));
+    api.getAdminUsers().then(setUsers).catch((e) => setError(e.message));
+    api.getAllTasks().then(setTasks).catch((e) => setError(e.message));
   };
 
   useEffect(load, []);
 
   const handleFreeze = async (userId: string) => {
+    setError('');
     setActionLoading(userId);
     try {
       await api.toggleFreeze(userId);
       load();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { setError(e.message); }
     setActionLoading(null);
   };
 
   const handleCredit = async (userId: string) => {
-    const amount = prompt('Enter credit amount in NGN:');
-    if (!amount || isNaN(Number(amount))) return;
+    if (!creditAmount || isNaN(Number(creditAmount)) || Number(creditAmount) <= 0) return;
+    setError('');
     setActionLoading(userId);
     try {
-      await api.manualCredit(userId, Number(amount));
+      await api.manualCredit(userId, Number(creditAmount));
+      setCreditTarget(null);
+      setCreditAmount('');
       load();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { setError(e.message); }
     setActionLoading(null);
   };
 
@@ -119,6 +126,46 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+          {error}
+        </div>
+      )}
+
+      {/* Credit Modal */}
+      {creditTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => { setCreditTarget(null); setCreditAmount(''); }}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-2">Manual Credit</h3>
+            <p className="text-sm text-stone-500 mb-4">Enter amount to credit {users.find(u => u.id === creditTarget)?.name}'s balance:</p>
+            <input
+              type="number"
+              value={creditAmount}
+              onChange={e => setCreditAmount(e.target.value)}
+              className="w-full px-4 py-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
+              placeholder="Amount in NGN"
+              min="1"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleCredit(creditTarget)}
+                disabled={actionLoading === creditTarget || !creditAmount || Number(creditAmount) <= 0}
+                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:bg-emerald-300 transition-colors"
+              >
+                {actionLoading === creditTarget ? 'Processing...' : 'Apply Credit'}
+              </button>
+              <button
+                onClick={() => { setCreditTarget(null); setCreditAmount(''); }}
+                className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl font-medium hover:bg-stone-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* User Management */}
       <div className="bg-white rounded-xl border border-stone-200 p-5">
         <h3 className="font-bold mb-4">User Management</h3>
@@ -136,7 +183,7 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {users.map((u: any) => {
-                const cap = u.tier === 'UNVERIFIED' ? 5000 : u.tier === 'VERIFIED' ? 30000 : u.tier === 'TRUSTED' ? 50000 : u.tier === 'ADVANCED' ? 100000 : 150000;
+                const cap = u.credit_cap || (u.tier === 'UNVERIFIED' ? 5000 : u.tier === 'VERIFIED' ? 30000 : u.tier === 'TRUSTED' ? 50000 : u.tier === 'ADVANCED' ? 100000 : 150000);
                 return (
                 <tr key={u.id} className="border-b border-stone-100">
                   <td className="py-3 font-medium">{u.name}</td>
@@ -168,7 +215,7 @@ export default function AdminDashboard() {
                         {u.status === 'FROZEN' ? 'Unfreeze' : 'Freeze'}
                       </button>
                       <button
-                        onClick={() => handleCredit(u.id)}
+                        onClick={() => { setCreditTarget(u.id); setCreditAmount(''); }}
                         disabled={actionLoading === u.id}
                         className="px-3 py-1 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
                       >

@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { getDb } from '../database';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'chopfirst-dev-secret-do-not-use-in-production';
 
 declare global {
   namespace Express {
@@ -9,38 +11,68 @@ declare global {
   }
 }
 
-export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+export function signToken(userId: string, role: string): string {
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: '30d' });
+}
+
+export function authenticate(req: Request, res: Response, next: NextFunction): void {
   try {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      res.status(401).json({ success: false, error: 'Missing x-user-id header' });
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: 'Missing or invalid Authorization header' });
       return;
     }
-    const db = getDb();
-    const result = await db.query('SELECT id, tier FROM users WHERE id = $1', [userId]);
-    const user = result.rows[0] as { id: string; tier: string } | undefined;
-    if (!user) {
-      res.status(401).json({ success: false, error: 'User not found' });
-      return;
-    }
-    req.user = { id: user.id, role: user.tier === 'ADMIN' ? 'admin' : 'user' };
+    const token = header.slice(7);
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+    req.user = { id: payload.userId, role: payload.role };
     next();
-  } catch (err) {
-    next(err);
+  } catch (err: any) {
+    if (err.name === 'TokenExpiredError') {
+      res.status(401).json({ success: false, error: 'Token expired' });
+    } else {
+      res.status(401).json({ success: false, error: 'Invalid token' });
+    }
   }
 }
 
-export async function optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
   try {
-    const userId = req.headers['x-user-id'] as string;
-    if (userId) {
-      const db = getDb();
-      const result = await db.query('SELECT id FROM users WHERE id = $1', [userId]);
-      const user = result.rows[0] as { id: string } | undefined;
-      if (user) req.user = { id: user.id, role: 'user' };
+    const header = req.headers.authorization;
+    if (header && header.startsWith('Bearer ')) {
+      const token = header.slice(7);
+      const payload = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+      req.user = { id: payload.userId, role: payload.role };
     }
     next();
-  } catch (err) {
-    next(err);
+  } catch {
+    next();
   }
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: 'Authentication required' });
+    return;
+  }
+  if (req.user.role !== 'admin') {
+    res.status(403).json({ success: false, error: 'Admin access required' });
+    return;
+  }
+  if (req.user.id.startsWith('id_')) {
+    res.status(403).json({ success: false, error: 'Demo accounts cannot perform admin actions' });
+    return;
+  }
+  next();
+}
+
+export function requireRealUser(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: 'Authentication required' });
+    return;
+  }
+  if (req.user.id.startsWith('id_')) {
+    res.status(403).json({ success: false, error: 'Demo accounts cannot perform this action' });
+    return;
+  }
+  next();
 }

@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireRealUser } from '../middleware/auth';
+import { validate, schemas } from '../middleware/validate';
 import { v4 as uuid } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { checkAndApplyFreeze, stripPassword } from '../helpers';
+import { signToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -18,6 +20,12 @@ router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response)
   res.json({ success: true, data: { ...stripPassword(user), tierLimit } });
 }));
 
+router.get('/demo-list', asyncHandler(async (_req: Request, res: Response) => {
+  const db = getDb();
+  const result = await db.query('SELECT * FROM users WHERE id LIKE $1 ORDER BY created_at DESC', ['id_%']);
+  res.json({ success: true, data: result.rows.map(stripPassword) });
+}));
+
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const result = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
@@ -26,9 +34,20 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: stripPassword(user) });
 }));
 
-router.post('/login', asyncHandler(async (req: Request, res: Response) => {
+router.post('/demo-login', validate(schemas.demologin), asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.body;
+  const db = getDb();
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+  const user = result.rows[0] as any;
+  if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
+  const tierLimit = tierResult.rows[0] as any;
+  const token = signToken(user.id, user.tier === 'ADMIN' ? 'admin' : 'user');
+  res.json({ success: true, data: { ...stripPassword(user), tierLimit }, token });
+}));
+
+router.post('/login', validate(schemas.login), asyncHandler(async (req: Request, res: Response) => {
   const { credential, password } = req.body;
-  if (!credential || !password) { res.status(400).json({ success: false, error: 'Phone/email and password required' }); return; }
   const db = getDb();
   const result = await db.query('SELECT * FROM users WHERE phone = $1 OR email = $1', [credential]);
   const user = result.rows[0] as any;
@@ -38,15 +57,12 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   if (!valid) { res.status(401).json({ success: false, error: 'Incorrect password' }); return; }
   const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
   const tierLimit = tierResult.rows[0] as any;
-  res.json({ success: true, data: { ...stripPassword(user), tierLimit } });
+  const token = signToken(user.id, user.tier === 'ADMIN' ? 'admin' : 'user');
+  res.json({ success: true, data: { ...stripPassword(user), tierLimit }, token });
 }));
 
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', validate(schemas.createUser), asyncHandler(async (req: Request, res: Response) => {
   const { phone, name, email, password } = req.body;
-  if (!phone && !email) { res.status(400).json({ success: false, error: 'Phone or email required' }); return; }
-  if (!name) { res.status(400).json({ success: false, error: 'Name required' }); return; }
-  if (!password) { res.status(400).json({ success: false, error: 'Password required' }); return; }
-  if (password.length < 6) { res.status(400).json({ success: false, error: 'Password must be at least 6 characters' }); return; }
   const db = getDb();
   if (email) {
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
@@ -60,13 +76,13 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   );
   const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
   const user = result.rows[0];
-  res.status(201).json({ success: true, data: user });
+  const token = signToken(user.id, 'user');
+  res.status(201).json({ success: true, data: stripPassword(user), token });
 }));
 
-router.post('/pay', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.post('/pay', authenticate, requireRealUser, validate(schemas.pay), asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const { amount } = req.body;
-  if (!amount || amount <= 0) { res.status(400).json({ success: false, error: 'Invalid amount' }); return; }
 
   const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user!.id]);
   const user = userResult.rows[0] as any;

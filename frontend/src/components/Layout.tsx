@@ -1,20 +1,19 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { cn, isStandalone } from '../lib/utils';
+import { cn } from '../lib/utils';
 
-const allNavItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { path: '/tasks', label: 'Tasks', icon: '📋' },
-  { path: '/merchant', label: 'Merchant', icon: '🏪' },
-  { path: '/admin', label: 'Admin', icon: '⚙️' },
-];
-
-const standaloneBlocklist = new Set(['/merchant', '/admin']);
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches;
 
 export default function Layout({ user, onLogout }: { user: any; onLogout: () => void }) {
   const location = useLocation();
-  const navItems = isStandalone()
-    ? allNavItems.filter(item => !standaloneBlocklist.has(item.path))
-    : allNavItems;
+  const isDemo = user?.id?.startsWith('id_');
+  const standalone = isStandalone();
+
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
+    { path: '/tasks', label: 'Tasks', icon: '📋' },
+    ...(!isDemo && !standalone ? [{ path: '/merchant', label: 'Merchant', icon: '🏪' }] : []),
+    ...(user?.tier === 'ADMIN' && !standalone ? [{ path: '/admin', label: 'Admin', icon: '⚙️' }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col">

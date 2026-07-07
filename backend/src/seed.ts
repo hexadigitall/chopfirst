@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { logger } from './logger';
 
 let idCounter = 0;
 function id(): string {
@@ -167,6 +168,5 @@ export async function seed(db: Pool): Promise<void> {
     }
   }
 
-  console.log(`   ${users.length} users, ${merchants.length} merchants, ${allMenuItems.length} menu items`);
-  console.log(`   ${taskDefs.length} tasks, ${orderDefs.length} orders`);
+  logger.info({ users: users.length, merchants: merchants.length, menuItems: allMenuItems.length, tasks: taskDefs.length, orders: orderDefs.length }, 'Seed complete');
 }

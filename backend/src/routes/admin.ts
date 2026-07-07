@@ -1,10 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
+import { authenticate, requireAdmin } from '../middleware/auth';
+import { validate, schemas } from '../middleware/validate';
 import { stripPassword } from '../helpers';
 
 const router = Router();
 
-router.get('/metrics', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/metrics', authenticate, requireAdmin, asyncHandler(async (_req: Request, res: Response) => {
   const db = getDb();
 
   const totalUsers = (await db.query("SELECT COUNT(*)::int as c FROM users")).rows[0].c;
@@ -35,13 +37,13 @@ router.get('/metrics', asyncHandler(async (_req: Request, res: Response) => {
   }});
 }));
 
-router.get('/users', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/users', authenticate, requireAdmin, asyncHandler(async (_req: Request, res: Response) => {
   const db = getDb();
   const result = await db.query('SELECT * FROM users ORDER BY created_at DESC');
   res.json({ success: true, data: result.rows.map(stripPassword) });
 }));
 
-router.post('/users/:id/freeze', asyncHandler(async (req: Request, res: Response) => {
+router.post('/users/:id/freeze', authenticate, requireAdmin, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const result = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
   const user = result.rows[0] as any;
@@ -52,10 +54,9 @@ router.post('/users/:id/freeze', asyncHandler(async (req: Request, res: Response
   res.json({ success: true, data: stripPassword(updatedResult.rows[0]) });
 }));
 
-router.post('/users/:id/credit', asyncHandler(async (req: Request, res: Response) => {
+router.post('/users/:id/credit', authenticate, requireAdmin, validate(schemas.adminCredit), asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const { amount } = req.body;
-  if (!amount || amount <= 0) { res.status(400).json({ success: false, error: 'Invalid amount' }); return; }
   const result = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
   const user = result.rows[0] as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }

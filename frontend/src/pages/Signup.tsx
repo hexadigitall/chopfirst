@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { api } from '../api/client';
 
-export default function Signup() {
+export default function Signup({ onLogin }: { onLogin?: (id: string) => void }) {
   const [name, setName] = useState('');
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
@@ -25,11 +26,28 @@ export default function Signup() {
         ...(isEmail ? { email: credential.trim() } : { phone: credential.trim() }),
         password,
       });
-      localStorage.setItem('chopfirst_user', user.id);
       localStorage.setItem('chopfirst_new_user', 'true');
       navigate('/approval', { replace: true });
     } catch (e: any) {
       setError(e.message || 'Signup failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setError('');
+    setLoading(true);
+    try {
+      const data = await api.googleLogin(credentialResponse.credential);
+      if (data.isNew) {
+        localStorage.setItem('chopfirst_new_user', 'true');
+        navigate('/approval', { replace: true });
+      } else if (onLogin) {
+        onLogin(data.id);
+      }
+    } catch (e: any) {
+      setError(e.message || 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
@@ -88,6 +106,23 @@ export default function Signup() {
           >
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-stone-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-stone-400">or</span>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google sign-in failed')}
+              size="large"
+              shape="rectangular"
+              text="signup_with"
+            />
+          </div>
           <p className="text-center text-sm text-stone-400">
             Already have an account?{' '}
             <Link to="/login" className="text-emerald-600 font-medium hover:underline">Sign in</Link>

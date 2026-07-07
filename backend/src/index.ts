@@ -1,7 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { initDb } from './database';
+import { logger } from './logger';
 import userRoutes from './routes/users';
+import authRoutes from './routes/auth';
 import merchantRoutes from './routes/merchants';
 import orderRoutes from './routes/orders';
 import taskRoutes from './routes/tasks';
@@ -13,6 +15,12 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Request logging
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  logger.info({ method: req.method, path: req.path, query: req.query }, 'incoming request');
+  next();
+});
 
 // Health check — always responds, even before DB init
 app.get('/api/health', (_req, res) => {
@@ -32,7 +40,7 @@ let initPromise: Promise<void> | null = null;
 app.use('/api', (_req, res, next) => {
   if (!initPromise) initPromise = initDb();
   initPromise.then(() => next()).catch((err) => {
-    console.error('DB init failed:', err?.message || err);
+    logger.error({ err }, 'DB init failed');
     initPromise = null;
     const message = process.env.DATABASE_URL
       ? `Database connection failed: ${err?.message || err}`
@@ -40,6 +48,8 @@ app.use('/api', (_req, res, next) => {
     res.status(500).json({ success: false, error: message });
   });
 });
+
+app.use('/api/auth', authRoutes);
 
 app.use('/api/users', userRoutes);
 app.use('/api/merchants', merchantRoutes);
@@ -50,14 +60,14 @@ app.use('/api/platform', platformRoutes);
 
 // Error middleware — catch all and return JSON
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled error:', err?.message || err);
+  logger.error({ err }, 'Unhandled error');
   res.status(500).json({ success: false, error: err?.message || 'Internal server error' });
 });
 
 if (process.env.VERCEL !== '1') {
   initDb().then(() => {
     app.listen(PORT, () => {
-      console.log(`🍽️  Chop First API running on http://localhost:${PORT}`);
+      logger.info({ port: PORT }, 'Chop First API started');
     });
   });
 }

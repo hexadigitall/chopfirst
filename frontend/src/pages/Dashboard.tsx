@@ -13,15 +13,17 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
   const [payMsg, setPayMsg] = useState('');
   const [showPortal, setShowPortal] = useState(false);
   const [portalAmount, setPortalAmount] = useState(0);
+  const [loadError, setLoadError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.getMerchants().then(setMerchants).catch(() => {});
-    if (user) {
-      api.getMe().then(u => { setUser(u); }).catch(() => {});
-      api.getOrders().then(setOrders).catch(() => {});
-    }
-    api.getPlatformInfo().then(setInfo).catch(() => {});
+    setLoadError('');
+    Promise.all([
+      api.getMerchants().then(setMerchants),
+      user ? api.getMe().then(u => setUser(u)) : Promise.resolve(),
+      user ? api.getOrders().then(setOrders) : Promise.resolve(),
+      api.getPlatformInfo().then(setInfo),
+    ]).catch((e) => setLoadError(e.message || 'Failed to load data'));
   }, []);
 
   const isFrozen = user?.status === 'FROZEN';
@@ -42,7 +44,7 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
       if (result.fullyCleared) setPayMsg('Balance fully cleared! 🎉');
       else setPayMsg(`Payment of ${formatNGN(result.paid)} received. ${formatNGN(result.outstanding_balance)} remaining.`);
       setPayAmount('');
-      api.getOrders().then(setOrders).catch(() => {});
+      api.getOrders().then(setOrders).catch((e) => setLoadError(e.message));
     } catch (e: any) {
       setPayMsg(e.message || 'Payment failed');
     } finally {
@@ -53,6 +55,11 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+          {loadError}
+        </div>
+      )}
       {/* Status Banner */}
       {isFrozen && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">

@@ -6,31 +6,36 @@ export default function Tasks({ user, setUser }: { user: any; setUser: (u: any) 
   const [tasks, setTasks] = useState<any[]>([]);
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const load = () => {
+    setLoadError('');
     api.getTasks().then(all => {
       setTasks(all.filter((t: any) => t.status === 'OPEN'));
       setMyTasks(all.filter((t: any) => t.status === 'ASSIGNED' || t.status === 'COMPLETED_PENDING'));
-    }).catch(() => {});
+    }).catch((e) => setLoadError(e.message));
   };
 
   useEffect(load, []);
 
   const handleAssign = async (taskId: string) => {
+    setActionError('');
     setLoading(taskId);
     try {
       await api.assignTask(taskId);
       load();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { setActionError(e.message); }
     setLoading(null);
   };
 
   const handleComplete = async (taskId: string) => {
+    setActionError('');
     setLoading(taskId);
     try {
       await api.completeTask(taskId);
       load();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { setActionError(e.message); }
     setLoading(null);
   };
 
@@ -54,6 +59,12 @@ export default function Tasks({ user, setUser }: { user: any; setUser: (u: any) 
           {formatNGN(user?.outstanding_balance || 0)}
         </div>
       </div>
+
+      {(loadError || actionError) && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+          {loadError || actionError}
+        </div>
+      )}
 
       {/* My active tasks */}
       {myTasks.length > 0 && (

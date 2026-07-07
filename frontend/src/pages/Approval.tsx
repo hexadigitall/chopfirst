@@ -13,8 +13,8 @@ export default function Approval() {
       localStorage.removeItem('chopfirst_new_user');
     }, 3500);
     const t3 = setTimeout(() => {
-      const stored = localStorage.getItem('chopfirst_user');
-      if (stored) {
+      const token = localStorage.getItem('chopfirst_token');
+      if (token) {
         window.location.href = '/dashboard';
       }
     }, 5000);
