@@ -129,7 +129,7 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
         <div className="mt-4 bg-emerald-700 rounded-lg px-3 py-2">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-emerald-200">Outstanding Cap Usage</span>
-            <span className="font-bold">
+            <span className="font-bold font-mono tabular-nums">
               {formatNGN(user?.outstanding_balance || 0)} / {formatNGN(totalCap)} · {Math.round(capUsage)}%
             </span>
           </div>
@@ -285,15 +285,15 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
           <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider mb-3">Platform Impact</h3>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-xl font-bold text-stone-800">{info.stats.totalMealsServed}</div>
-              <div className="text-xs text-stone-500">Meals Served</div>
+              <div className="text-xl font-bold text-stone-800 font-mono tabular-nums">{info.stats.totalMealsServed}</div>
+              <div className="text-xs text-stone-500">Demo Orders</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-stone-800">{info.stats.activeMerchants}</div>
+              <div className="text-xl font-bold text-stone-800 font-mono tabular-nums">{info.stats.activeMerchants}</div>
               <div className="text-xs text-stone-500">Merchants</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-stone-800">{formatNGN(info.stats.totalSubsidyDisbursed)}</div>
+              <div className="text-xl font-bold text-stone-800 font-mono tabular-nums">{formatNGN(info.stats.totalSubsidyDisbursed)}</div>
               <div className="text-xs text-stone-500">Total Subsidy</div>
             </div>
           </div>

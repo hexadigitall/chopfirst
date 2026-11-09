@@ -184,38 +184,25 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
                 </div>
               </>
             )}
-            <div className={`border-t pt-2 flex justify-between font-bold text-lg ${exceedsPerOrderLimit ? 'text-red-500' : 'text-emerald-700'}`}>
-              <span>This order outstanding</span>
-              <span>{formatNGN(outstanding)}</span>
+            {/* Subsidy vs Per-order Limit */}
+            <div className="flex justify-between text-sm pt-2 border-t">
+              <span className="text-stone-500">Subsidy amount</span>
+              <span className={`font-medium ${exceedsPerOrderLimit ? 'text-red-500' : 'text-emerald-700'}`}>{formatNGN(subsidy)} / {formatNGN(perOrderLimit)}</span>
             </div>
-            <div className="flex justify-between text-xs text-stone-400">
-              <span>Per-order subsidy limit</span>
-              <span>{formatNGN(perOrderLimit)}</span>
+            {/* Total Outstanding vs Total Cap */}
+            <div className="flex justify-between text-sm">
+              <span className="text-stone-500">Total outstanding</span>
+              <span className={`font-medium ${exceedsCreditCap ? 'text-red-500' : 'text-amber-600'}`}>{formatNGN(newTotalDebt)} / {formatNGN(totalCap)}</span>
             </div>
-            {down < total && (
-              <>
-                <div className="border-t border-stone-100 pt-2 flex justify-between text-sm">
-                  <span className="text-stone-500">Current total debt</span>
-                  <span className="font-medium">{formatNGN(currentDebt)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-stone-500">Total after this order</span>
-                  <span className={`font-bold ${exceedsCreditCap ? 'text-red-500' : 'text-amber-600'}`}>{formatNGN(newTotalDebt)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-stone-400">
-                  <span>Total cap</span>
-                  <span>{formatNGN(totalCap)}</span>
-                </div>
-                {/* Total outstanding cap gauge */}
-                <div className="mt-2 bg-stone-200 rounded-full h-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${newTotalDebt > totalCap ? 'bg-red-500' : 'bg-emerald-500'}`}
-                    style={{ width: `${Math.min(100, (newTotalDebt / totalCap) * 100)}%` }}
-                  />
-                </div>
-                <div className="text-xs text-stone-400 text-right">{Math.round((newTotalDebt / totalCap) * 100)}% of total cap after this order</div>
-              </>
-            )}
+
+            {/* Total outstanding cap gauge */}
+            <div className="mt-2 bg-stone-200 rounded-full h-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${newTotalDebt > totalCap ? 'bg-red-500' : 'bg-emerald-500'}`}
+                style={{ width: `${Math.min(100, (newTotalDebt / totalCap) * 100)}%` }}
+              />
+            </div>
+            <div className="text-xs text-stone-400 text-right">{Math.round((newTotalDebt / totalCap) * 100)}% of total cap after this order</div>
             {exceedsPerOrderLimit && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mt-2">
                 ⚠️ This exceeds your {user?.tier} per-order limit of {formatNGN(perOrderLimit)}. 

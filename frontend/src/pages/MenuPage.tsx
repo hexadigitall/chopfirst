@@ -13,7 +13,7 @@ export default function MenuPage({ user }: { user: any }) {
     if (merchantId) api.getMerchant(merchantId).then(setMerchant).catch(() => navigate('/dashboard'));
   }, [merchantId]);
 
-  if (!merchant) return <div className="text-center py-12 text-stone-500">Loading...</div>;
+  if (!merchant) return <div className="text-center py-12 text-stone-500 animate-pulse">Loading menu...</div>;
 
   const addItem = (item: any) => {
     setCart(prev => {

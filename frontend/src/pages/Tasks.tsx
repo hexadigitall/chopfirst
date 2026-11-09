@@ -53,7 +53,7 @@ export default function Tasks({ user, setUser }: { user: any; setUser: (u: any) 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Community Tasks</h1>
-          <p className="text-stone-400">Complete tasks to clear your outstanding balance. Credit is capped at what you owe.</p>
+          <p className="text-stone-400">{user?.outstanding_balance > 0 ? "Complete tasks to clear your outstanding balance. Credit is capped at what you owe." : "No balance to clear – tasks are available for your next order"}</p>
         </div>
         <div className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl font-bold text-lg">
           {formatNGN(user?.outstanding_balance || 0)}

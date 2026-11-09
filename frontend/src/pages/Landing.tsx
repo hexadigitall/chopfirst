@@ -57,8 +57,8 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
                   <Link to="/login" className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
                     Try the Demo →
                   </Link>
-                  <button onClick={() => navigate('/signup')} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
-                    Sign Up Free
+                  <button onClick={() => navigate('/demo-login')} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
+                    Try Demo
                   </button>
                 </>
               )}
@@ -73,15 +73,15 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
           <div className="border-t border-emerald-600 bg-emerald-900">
             <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold">{info.stats.totalMealsServed}</div>
-                <div className="text-sm text-emerald-200">Meals Served</div>
+                <div className="text-2xl font-bold font-mono tabular-nums">{info.stats.totalMealsServed}</div>
+                <div className="text-sm text-emerald-200">Demo Orders</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{info.stats.activeMerchants}</div>
+                <div className="text-2xl font-bold font-mono tabular-nums">{info.stats.activeMerchants}</div>
                 <div className="text-sm text-emerald-200">Partner Merchants</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">₦{info.stats.totalSubsidyDisbursed?.toLocaleString()}</div>
+                <div className="text-2xl font-bold font-mono tabular-nums">₦{info.stats.totalSubsidyDisbursed?.toLocaleString()}</div>
                 <div className="text-sm text-emerald-200">Subsidy Disbursed</div>
               </div>
             </div>
