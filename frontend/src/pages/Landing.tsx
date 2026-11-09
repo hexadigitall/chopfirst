@@ -201,7 +201,7 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
             </Link>
           ) : (
             <div className="flex flex-wrap gap-3 justify-center">
-              <Link to="/login" className="inline-flex items-center px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
+              <Link to="/demo-login" className="inline-flex items-center px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg">
                 Launch Demo →
               </Link>
               <button onClick={() => navigate('/signup')} className="inline-flex items-center px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
