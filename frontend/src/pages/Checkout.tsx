@@ -30,20 +30,21 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
   const { items, merchant } = state;
   const total = items.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
   const down = parseFloat(downPayment) || 0;
-  const fee = down < total ? Math.round((total - down) * 0.10 * 100) / 100 : 0;
-  const outstanding = Math.max(0, total - down + fee);
-  const perOrderLimit = user?.tierLimit?.max_subsidy || 2500;
-  const creditCap = user?.tierLimit?.credit_cap || 5000;
+  const subsidy = Math.max(0, total - down);
+  const fee = down < total ? Math.round(subsidy * 0.10 * 100) / 100 : 0;
+  const outstanding = subsidy + fee;
+  const perOrderLimit = user?.tierLimit?.per_order || 2500;
+  const totalCap = user?.tierLimit?.total_cap || 5000;
   const currentDebt = user?.outstanding_balance || 0;
   const newTotalDebt = currentDebt + outstanding;
-  const exceedsPerOrderLimit = outstanding > perOrderLimit;
-  const exceedsCreditCap = down < total && newTotalDebt > creditCap;
-  const creditRoom = Math.max(0, creditCap - currentDebt);
+  const exceedsPerOrderLimit = down < total && subsidy > perOrderLimit;
+  const exceedsCreditCap = down < total && newTotalDebt > totalCap;
+  const creditRoom = Math.max(0, totalCap - currentDebt);
 
   const handleSubmit = () => {
     if (down <= 0 || down > total) { setError('Enter a valid down payment amount'); return; }
-    if (exceedsPerOrderLimit) { setError(`Outstanding ${formatNGN(outstanding)} exceeds your ${user.tier} per-order limit of ${formatNGN(perOrderLimit)}`); return; }
-    if (exceedsCreditCap) { setError(`Total debt of ${formatNGN(newTotalDebt)} would exceed your credit cap of ${formatNGN(creditCap)}. You can only accrue ${formatNGN(creditRoom)} more. Increase down payment or clear debt first.`); return; }
+    if (exceedsPerOrderLimit) { setError(`Exceeds per-order limit ${formatNGN(perOrderLimit)} — your subsidy is ${formatNGN(subsidy)}`); return; }
+    if (exceedsCreditCap) { setError(`Exceeds total cap ${formatNGN(totalCap)}. This order would take your balance to ${formatNGN(newTotalDebt)}; you can only accrue ${formatNGN(creditRoom)} more. Increase down payment or clear balance first.`); return; }
     setShowPortal(true);
   };
 
@@ -84,7 +85,7 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
                 <span className="font-bold text-red-500">{formatNGN(result.outstanding)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-stone-400">Fee (10%)</span>
+                <span className="text-stone-400">One-time fee (10%)</span>
                 <span className="text-stone-500">{formatNGN(result.fee)}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -178,7 +179,7 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
                   <span className="text-amber-600 font-medium">{formatNGN(total - down)}</span>
                 </div>
                 <div className="flex justify-between text-stone-600">
-                  <span>Processing fee (10%)</span>
+                  <span>One-time processing fee (10%)</span>
                   <span>{formatNGN(fee)}</span>
                 </div>
               </>
@@ -202,29 +203,29 @@ export default function Checkout({ user, setUser }: { user: any; setUser: (u: an
                   <span className={`font-bold ${exceedsCreditCap ? 'text-red-500' : 'text-amber-600'}`}>{formatNGN(newTotalDebt)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-stone-400">
-                  <span>Credit cap</span>
-                  <span>{formatNGN(creditCap)}</span>
+                  <span>Total cap</span>
+                  <span>{formatNGN(totalCap)}</span>
                 </div>
-                {/* Credit cap gauge */}
+                {/* Total outstanding cap gauge */}
                 <div className="mt-2 bg-stone-200 rounded-full h-2 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${newTotalDebt > creditCap ? 'bg-red-500' : 'bg-emerald-500'}`}
-                    style={{ width: `${Math.min(100, (newTotalDebt / creditCap) * 100)}%` }}
+                    className={`h-full rounded-full transition-all ${newTotalDebt > totalCap ? 'bg-red-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.min(100, (newTotalDebt / totalCap) * 100)}%` }}
                   />
                 </div>
-                <div className="text-xs text-stone-400 text-right">{Math.round((newTotalDebt / creditCap) * 100)}% of credit cap used</div>
+                <div className="text-xs text-stone-400 text-right">{Math.round((newTotalDebt / totalCap) * 100)}% of total cap after this order</div>
               </>
             )}
             {exceedsPerOrderLimit && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mt-2">
                 ⚠️ This exceeds your {user?.tier} per-order limit of {formatNGN(perOrderLimit)}. 
-                Pay at least {formatNGN(total - perOrderLimit + fee + 1)} as down payment.
+                Pay at least {formatNGN(Math.max(0, total - perOrderLimit))} as down payment.
               </div>
             )}
             {exceedsCreditCap && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mt-2">
-                ⚠️ Total debt would reach {formatNGN(newTotalDebt)}, exceeding your {user?.tier} credit cap of {formatNGN(creditCap)}.
-                You can only accrue {formatNGN(creditRoom)} more. Pay at least {formatNGN(total - creditRoom + fee + 1)} down.
+                ⚠️ Total debt would reach {formatNGN(newTotalDebt)}, exceeding your {user?.tier} total cap of {formatNGN(totalCap)}.
+                You can only accrue {formatNGN(creditRoom)} more. Increase your down payment or clear existing balance first.
               </div>
             )}
           </div>

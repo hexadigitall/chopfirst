@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { getDb, asyncHandler } from '../database';
 import { signToken } from '../middleware/auth';
-import { stripPassword } from '../helpers';
+import { getTierLimit, stripPassword } from '../helpers';
 import { v4 as uuid } from 'uuid';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -42,8 +42,7 @@ router.post('/google', asyncHandler(async (req: Request, res: Response) => {
       await db.query('UPDATE users SET avatar = $1 WHERE id = $2', [avatar, user.id]);
       user.avatar = avatar;
     }
-    const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
-    const tierLimit = tierResult.rows[0] as any;
+    const tierLimit = await getTierLimit(user.tier);
     const token = signToken(user.id, user.tier === 'ADMIN' ? 'admin' : 'user');
     res.json({ success: true, data: { ...stripPassword(user), tierLimit, isNew: false }, token });
     return;
@@ -54,8 +53,7 @@ router.post('/google', asyncHandler(async (req: Request, res: Response) => {
     if (existingByEmail.rows.length > 0) {
       const user = existingByEmail.rows[0] as any;
       await db.query('UPDATE users SET google_id = $1, avatar = COALESCE($2, avatar) WHERE id = $3', [googleId, avatar, user.id]);
-      const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
-      const tierLimit = tierResult.rows[0] as any;
+      const tierLimit = await getTierLimit(user.tier);
       const token = signToken(user.id, user.tier === 'ADMIN' ? 'admin' : 'user');
       res.json({ success: true, data: { ...stripPassword(user), tierLimit, isNew: false }, token });
       return;
@@ -64,9 +62,10 @@ router.post('/google', asyncHandler(async (req: Request, res: Response) => {
 
   const id = uuid();
   const displayName = name || email?.split('@')[0] || 'Google User';
+  const walletAddress = `0x${id.replace(/-/g, '').padEnd(40, '0').slice(0, 40)}`;
   await db.query(
-    'INSERT INTO users (id, email, name, google_id, avatar, clean_cycles) VALUES ($1,$2,$3,$4,$5,$6)',
-    [id, email || null, displayName, googleId, avatar || null, 10]
+    'INSERT INTO users (id, email, name, google_id, avatar, wallet_address, clean_cycles) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+    [id, email || null, displayName, googleId, avatar || null, walletAddress, 0]
   );
   const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
   const user = result.rows[0] as any;

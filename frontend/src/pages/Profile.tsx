@@ -31,12 +31,12 @@ export default function Profile({ user, onLogout }: { user: any; onLogout: () =>
             <span className="font-bold">{user?.clean_cycles || 0}</span>
           </div>
           <div className="flex justify-between items-center mb-3">
-            <span className="text-stone-400">Max Subsidy (per order)</span>
-            <span className="font-bold">{formatNGN(user?.tierLimit?.max_subsidy || 0)}</span>
+            <span className="text-stone-400">Per-Order Limit</span>
+            <span className="font-bold">{formatNGN(user?.tierLimit?.per_order || 0)}</span>
           </div>
           <div className="flex justify-between items-center mb-3">
-            <span className="text-stone-400">Credit Cap (total debt)</span>
-            <span className="font-bold">{formatNGN(user?.tierLimit?.credit_cap || 5000)}</span>
+            <span className="text-stone-400">Total Outstanding Cap</span>
+            <span className="font-bold">{formatNGN(user?.tierLimit?.total_cap || 5000)}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-stone-400">Settlement Window</span>
@@ -52,6 +52,7 @@ export default function Profile({ user, onLogout }: { user: any; onLogout: () =>
               <span className="text-stone-400">$KIND Balance</span>
               <span className="font-bold">{user.kind_balance} $KIND</span>
             </div>
+            <p className="mt-1 text-xs text-stone-400">100 $KIND ≈ ₦2,500 · Phase 3 preview — not spendable yet</p>
           </div>
         )}
 

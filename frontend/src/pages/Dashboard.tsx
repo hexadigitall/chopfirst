@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { formatNGN, daysUntil, isOverdue, tierColor, statusColor } from '../utils/format';
+import { getNextTier, TIERS } from '../lib/tiers';
 import PaymentPortal from '../components/PaymentPortal';
 
 export default function Dashboard({ user, setUser }: { user: any; setUser: (u: any) => void }) {
@@ -29,6 +30,14 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
   const isFrozen = user?.status === 'FROZEN';
   const isSuspended = user?.status === 'SUSPENDED';
   const hasDebt = (user?.outstanding_balance || 0) > 0;
+  const cleanCycles = user?.clean_cycles || 0;
+  const currentTier = TIERS.find(t => t.tier === user?.tier);
+  const nextTier = getNextTier(cleanCycles);
+  const cyclesToNext = nextTier ? Math.max(0, nextTier.minCycles - cleanCycles) : 0;
+  const perOrderLimit = user?.tierLimit?.per_order || currentTier?.perOrder || 0;
+  const totalCap = user?.tierLimit?.total_cap || currentTier?.totalCap || 5000;
+  const windowDays = user?.tierLimit?.window_days || currentTier?.windowDays || 7;
+  const capUsage = Math.min(100, ((user?.outstanding_balance || 0) / totalCap) * 100);
 
   const handlePay = async (amount: number) => {
     setPortalAmount(amount);
@@ -67,9 +76,8 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
           <div>
             <h3 className="font-bold text-red-800">Account Frozen</h3>
             <p className="text-sm text-red-600">
-              Your remaining credit of {formatNGN((user?.tierLimit?.credit_cap || 5000) - (user?.outstanding_balance || 0))} 
-              is too small to cover any available item (cheapest: {formatNGN(info?.stats?.cheapestItemPrice || 500)}).
-              Clear some debt to free up credit and continue ordering.
+              Your balance of {formatNGN(user?.outstanding_balance || 0)} is overdue. Clear Balance to unlock new orders.
+              No late fees or penalties are added after the due date.
             </p>
             <Link to="/tasks" className="inline-block mt-2 text-sm font-medium text-red-700 hover:text-red-800 underline">
               View available tasks →
@@ -110,28 +118,52 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
           </div>
           <div className="bg-emerald-700 rounded-lg px-3 py-2">
             <div className="text-emerald-200">Per-Order Limit</div>
-            <div className="font-bold">{formatNGN(user?.tierLimit?.max_subsidy || 0)}</div>
+            <div className="font-bold">{formatNGN(perOrderLimit)}</div>
           </div>
           <div className="bg-emerald-700 rounded-lg px-3 py-2">
             <div className="text-emerald-200">Window</div>
-            <div className="font-bold">{user?.tierLimit?.window_days || 7}d</div>
+            <div className="font-bold">{windowDays}d</div>
           </div>
         </div>
-        {/* Credit cap bar */}
+        {/* Outstanding cap bar */}
         <div className="mt-4 bg-emerald-700 rounded-lg px-3 py-2">
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-emerald-200">Credit Cap Usage</span>
+            <span className="text-emerald-200">Outstanding Cap Usage</span>
             <span className="font-bold">
-              {formatNGN(user?.outstanding_balance || 0)} / {formatNGN(user?.tierLimit?.credit_cap || 5000)}
+              {formatNGN(user?.outstanding_balance || 0)} / {formatNGN(totalCap)} · {Math.round(capUsage)}%
             </span>
           </div>
           <div className="bg-emerald-600 rounded-full h-2 overflow-hidden">
             <div
               className="h-full rounded-full bg-white transition-all"
-              style={{ width: `${Math.min(100, ((user?.outstanding_balance || 0) / (user?.tierLimit?.credit_cap || 5000)) * 100)}%` }}
+              style={{ width: `${capUsage}%` }}
             />
           </div>
         </div>
+      </div>
+
+      {/* Progress to next tier */}
+      <div className="bg-white rounded-xl border border-stone-200 p-5">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-bold">Tier Progress</h2>
+          <span className={`text-sm font-bold ${tierColor(user?.tier)} px-3 py-1 rounded-xl`}>{user?.tier} Tier</span>
+        </div>
+        {nextTier ? (
+          <>
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-stone-500">{cleanCycles} / {nextTier.minCycles} to {nextTier.name}</span>
+              <span className="font-semibold text-emerald-700">{cyclesToNext} clean cycles to {nextTier.name}</span>
+            </div>
+            <div className="bg-stone-200 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all"
+                style={{ width: `${Math.min(100, (cleanCycles / nextTier.minCycles) * 100)}%` }}
+              />
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-emerald-700 font-medium">Top tier reached — {cleanCycles} clean cycles.</p>
+        )}
       </div>
 
       {showPortal && (
@@ -148,8 +180,11 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
       {hasDebt && (
         <div className="bg-white rounded-xl border border-stone-200 p-5">
           <h2 className="text-lg font-bold mb-3">Clear Balance</h2>
-          <p className="text-sm text-stone-500 mb-4">
+          <p className="text-sm text-stone-500 mb-1">
             You owe {formatNGN(user?.outstanding_balance)}. Pay down your balance to free up credit.
+          </p>
+          <p className="text-xs text-stone-400 mb-4">
+            ≈ {Math.round((user?.outstanding_balance || 0) / 25)} $KIND · Phase 3 preview, not spendable yet
           </p>
           <div className="flex flex-wrap gap-3">
             <button
@@ -258,7 +293,7 @@ export default function Dashboard({ user, setUser }: { user: any; setUser: (u: a
               <div className="text-xs text-stone-500">Merchants</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-stone-800">{formatNGN(info.stats.totalSubsidyDispersed)}</div>
+              <div className="text-xl font-bold text-stone-800">{formatNGN(info.stats.totalSubsidyDisbursed)}</div>
               <div className="text-xs text-stone-500">Total Subsidy</div>
             </div>
           </div>

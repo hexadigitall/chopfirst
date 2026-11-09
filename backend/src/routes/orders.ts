@@ -1,9 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
-import { authenticate, requireRealUser } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { validate, schemas } from '../middleware/validate';
 import { v4 as uuid } from 'uuid';
-import { checkAndApplyFreeze } from '../helpers';
+import {
+  checkAndApplyFreeze,
+  getSeedPool,
+  getTierLimit,
+  getTotalExposure,
+  syncUserTier
+} from '../helpers';
 
 const router = Router();
 
@@ -31,7 +37,7 @@ router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response
   res.json({ success: true, data: { ...order, items: itemsResult.rows, transactions: txnsResult.rows } });
 }));
 
-router.post('/', authenticate, requireRealUser, validate(schemas.createOrder), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authenticate, validate(schemas.createOrder), asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const { merchantId, items, downPayment } = req.body;
 
@@ -39,7 +45,7 @@ router.post('/', authenticate, requireRealUser, validate(schemas.createOrder), a
   const user = userResult.rows[0] as any;
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
 
-  // Check freeze status based on remaining credit
+  // Freeze guardrail: any overdue balance blocks new orders.
   const freezeCheck = await checkAndApplyFreeze(user.id);
   if (freezeCheck.frozen) {
     res.status(403).json({ success: false, error: freezeCheck.reason });
@@ -66,23 +72,19 @@ router.post('/', authenticate, requireRealUser, validate(schemas.createOrder), a
     return;
   }
 
-  const tierResult = await db.query('SELECT * FROM tier_limits WHERE tier = $1', [user.tier]);
-  const tierLimit = tierResult.rows[0] as any;
+  const tierLimit = await getTierLimit(user.tier);
+  if (!tierLimit) { res.status(400).json({ success: false, error: 'Tier configuration not found' }); return; }
+
+  const walletAddress = user.wallet_address || `0x${user.id.replace(/[^a-f0-9]/gi, '').padEnd(40, '0').slice(0, 40)}`;
+  const dueAt = new Date();
+  dueAt.setDate(dueAt.getDate() + Number(tierLimit.window_days));
 
   if (downPayment === totalCost) {
-    // Full payment — check if cap is fully exhausted
-    if (user.outstanding_balance >= tierLimit.credit_cap) {
-      res.status(400).json({
-        success: false,
-        error: `Your total outstanding debt of ₦${user.outstanding_balance.toLocaleString()} has reached your ${user.tier} credit cap of ₦${tierLimit.credit_cap.toLocaleString()}. Clear some balance before ordering.`
-      });
-      return;
-    }
+    // Full payment creates no new subsidy, so caps do not apply — cash orders stay open.
     const orderId = uuid();
-    const dueAt = new Date(); dueAt.setDate(dueAt.getDate() + 14);
     await db.query(
-      "INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,fee,status,due_at) VALUES ($1,$2,$3,$4,$5,0,0,'COMPLETED',$6)",
-      [orderId, user.id, merchantId, totalCost, downPayment, dueAt.toISOString()]
+      "INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,outstanding_naira,wallet_address,fee,status,due_at) VALUES ($1,$2,$3,$4,$5,0,0,$6,0,'COMPLETED',$7)",
+      [orderId, user.id, merchantId, totalCost, downPayment, walletAddress, dueAt.toISOString()]
     );
     for (const oi of orderItems) {
       await db.query(
@@ -90,45 +92,54 @@ router.post('/', authenticate, requireRealUser, validate(schemas.createOrder), a
         [uuid(), orderId, oi.id, oi.quantity, oi.price]
       );
     }
-    const txId = uuid();
     await db.query(
       'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)',
-      [txId, orderId, user.id, merchantId, downPayment, 'DOWN_PAYMENT']
+      [uuid(), orderId, user.id, merchantId, downPayment, 'DOWN_PAYMENT']
     );
     await db.query('UPDATE merchants SET total_prepaid = total_prepaid + 1, total_revenue = total_revenue + $1 WHERE id = $2', [totalCost, merchantId]);
     res.json({ success: true, data: { id: orderId, totalCost, downPayment, outstanding: 0, status: 'COMPLETED', fullPayment: true } });
     return;
   }
 
-  const fee = Math.round((totalCost - downPayment) * 0.10 * 100) / 100;
-  const outstanding = totalCost - downPayment + fee;
-  const newTotalDebt = user.outstanding_balance + outstanding;
+  const subsidy = totalCost - downPayment;
+  const fee = Math.round(subsidy * 0.10 * 100) / 100;
+  const outstanding = subsidy + fee;
+  const newTotalDebt = Number(user.outstanding_balance) + outstanding;
 
-  if (outstanding > tierLimit.max_subsidy) {
-    const reqDown = Math.ceil(totalCost - tierLimit.max_subsidy + (tierLimit.max_subsidy * 0.10));
+  if (subsidy > Number(tierLimit.per_order)) {
+    const reqDown = Math.max(0, Math.ceil(totalCost - Number(tierLimit.per_order)));
     res.status(400).json({
       success: false,
-      error: `Subsidy ₦${outstanding.toLocaleString()} exceeds your ${user.tier} per-order limit of ₦${tierLimit.max_subsidy.toLocaleString()}. Increase your down payment or choose cheaper items.`,
-      data: { tierLimit: tierLimit.max_subsidy, requiredDown: reqDown }
+      error: `Exceeds per-order limit ₦${Number(tierLimit.per_order).toLocaleString()} (this order's subsidy is ₦${subsidy.toLocaleString()}). Increase your down payment or choose cheaper items.`,
+      data: { tierLimit: tierLimit.per_order, requiredDown: reqDown }
     });
     return;
   }
 
-  if (newTotalDebt > tierLimit.credit_cap) {
-    const room = tierLimit.credit_cap - user.outstanding_balance;
+  if (newTotalDebt > Number(tierLimit.total_cap)) {
+    const room = Math.max(0, Number(tierLimit.total_cap) - Number(user.outstanding_balance));
     res.status(400).json({
       success: false,
-      error: `This order would push your total debt to ₦${newTotalDebt.toLocaleString()}, exceeding your ${user.tier} credit cap of ₦${tierLimit.credit_cap.toLocaleString()}. You can only accrue ₦${room.toLocaleString()} more. Increase down payment or clear existing debt first.`,
-      data: { creditCap: tierLimit.credit_cap, currentDebt: user.outstanding_balance, maxNewDebt: room }
+      error: `Exceeds total cap ₦${Number(tierLimit.total_cap).toLocaleString()}. This order would take your balance to ₦${newTotalDebt.toLocaleString()}; you can only accrue ₦${room.toLocaleString()} more. Increase down payment or clear existing balance first.`,
+      data: { totalCap: tierLimit.total_cap, currentDebt: user.outstanding_balance, maxNewDebt: room }
+    });
+    return;
+  }
+
+  const seedPool = getSeedPool();
+  const exposure = await getTotalExposure();
+  if (exposure + subsidy > seedPool * 0.85) {
+    res.status(503).json({
+      success: false,
+      error: 'The pilot seed pool is currently at its 85% exposure reserve. Please try again later.'
     });
     return;
   }
 
   const orderId = uuid();
-  const dueAt = new Date(); dueAt.setDate(dueAt.getDate() + tierLimit.window_days);
   await db.query(
-    'INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,fee,status,due_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-    [orderId, user.id, merchantId, totalCost, downPayment, outstanding, fee, 'PREPAID', dueAt.toISOString()]
+    'INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,outstanding_naira,wallet_address,fee,status,due_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+    [orderId, user.id, merchantId, totalCost, downPayment, outstanding, outstanding, walletAddress, fee, 'PREPAID', dueAt.toISOString()]
   );
 
   for (const oi of orderItems) {
@@ -140,10 +151,10 @@ router.post('/', authenticate, requireRealUser, validate(schemas.createOrder), a
 
   const txDown = uuid(); const txSub = uuid(); const txFee = uuid();
   await db.query('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)', [txDown, orderId, user.id, merchantId, downPayment, 'DOWN_PAYMENT']);
-  await db.query('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)', [txSub, orderId, user.id, merchantId, outstanding - fee, 'SUBSIDY']);
+  await db.query('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)', [txSub, orderId, user.id, merchantId, subsidy, 'SUBSIDY']);
   if (fee > 0) await db.query('INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)', [txFee, orderId, user.id, merchantId, fee, 'FEE']);
 
-  await db.query('UPDATE users SET outstanding_balance = outstanding_balance + $1, total_subsidized = total_subsidized + $2 WHERE id = $3', [outstanding, outstanding - fee, user.id]);
+  await db.query('UPDATE users SET outstanding_balance = outstanding_balance + $1, total_subsidized = total_subsidized + $2 WHERE id = $3', [outstanding, subsidy, user.id]);
   await db.query('UPDATE merchants SET total_prepaid = total_prepaid + 1, total_revenue = total_revenue + $1 WHERE id = $2', [totalCost, merchantId]);
 
   res.status(201).json({
@@ -158,12 +169,12 @@ router.post('/', authenticate, requireRealUser, validate(schemas.createOrder), a
       merchantName: merchant.name,
       items: orderItems,
       tier: user.tier,
-      tierLimit: tierLimit.max_subsidy
+      tierLimit: tierLimit.per_order
     }
   });
 }));
 
-router.post('/:id/pay', authenticate, requireRealUser, validate(schemas.orderPay), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/pay', authenticate, validate(schemas.orderPay), asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const orderResult = await db.query('SELECT * FROM orders WHERE id = $1 AND user_id = $2', [req.params.id, req.user!.id]);
   const order = orderResult.rows[0] as any;
@@ -171,30 +182,27 @@ router.post('/:id/pay', authenticate, requireRealUser, validate(schemas.orderPay
   if (order.status !== 'PREPAID') { res.status(400).json({ success: false, error: 'Order already settled' }); return; }
 
   const { amount } = req.body;
+  const newOutstanding = Math.max(0, Math.round((Number(order.outstanding) - Number(amount)) * 100) / 100);
+  const paid = Math.round((Number(order.outstanding) - newOutstanding) * 100) / 100;
 
-  const newOutstanding = Math.max(0, order.outstanding - amount);
-  const paid = order.outstanding - newOutstanding;
-  const txId = uuid();
   await db.query(
     'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type) VALUES ($1,$2,$3,$4,$5,$6)',
-    [txId, order.id, order.user_id, order.merchant_id, paid, 'SETTLEMENT']
+    [uuid(), order.id, order.user_id, order.merchant_id, paid, 'SETTLEMENT']
   );
 
-  if (newOutstanding === 0) {
-    await db.query("UPDATE orders SET outstanding = 0, status = $1 WHERE id = $2", ['COMPLETED', order.id]);
-    await db.query('UPDATE users SET outstanding_balance = GREATEST(0, outstanding_balance - $1), clean_cycles = clean_cycles + 1 WHERE id = $2', [paid, order.user_id]);
-    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [order.user_id]);
-    const user = userResult.rows[0] as any;
-    const nextTierResult = await db.query('SELECT * FROM tier_limits WHERE min_cycles <= $1 ORDER BY min_cycles DESC LIMIT 1', [user.clean_cycles]);
-    const nextTier = nextTierResult.rows[0] as any;
-    if (nextTier && nextTier.tier !== user.tier) {
-      await db.query('UPDATE users SET tier = $1 WHERE id = $2', [nextTier.tier, user.id]);
-    }
+  if (newOutstanding <= 0) {
+    await db.query("UPDATE orders SET outstanding = 0, outstanding_naira = 0, status = 'COMPLETED' WHERE id = $1", [order.id]);
+    const earnedCycle = new Date() <= new Date(order.due_at) ? 1 : 0;
+    await db.query(
+      'UPDATE users SET outstanding_balance = GREATEST(0, outstanding_balance - $1), clean_cycles = clean_cycles + $2 WHERE id = $3',
+      [paid, earnedCycle, order.user_id]
+    );
+    await syncUserTier(order.user_id);
     await checkAndApplyFreeze(order.user_id);
     res.json({ success: true, data: { status: 'COMPLETED', message: 'Balance fully cleared!' } });
   } else {
-    await db.query('UPDATE orders SET outstanding = $1 WHERE id = $2', [newOutstanding, order.id]);
-    await db.query('UPDATE users SET outstanding_balance = $1 WHERE id = $2', [newOutstanding, order.user_id]);
+    await db.query('UPDATE orders SET outstanding = $1, outstanding_naira = $1 WHERE id = $2', [newOutstanding, order.id]);
+    await db.query('UPDATE users SET outstanding_balance = GREATEST(0, outstanding_balance - $1) WHERE id = $2', [paid, order.user_id]);
     await checkAndApplyFreeze(order.user_id);
     res.json({ success: true, data: { status: 'PARTIAL', outstanding: newOutstanding } });
   }

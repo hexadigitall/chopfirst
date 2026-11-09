@@ -45,7 +45,7 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
           </h2>
             <p className="text-lg md:text-xl text-emerald-100 leading-relaxed mb-8 max-w-2xl">
               Chop First eliminates short-term food insecurity with a dignity-preserving micro-subsidy platform.
-              When you can't afford a meal, we step in — no shame, no predatory interest, just a fair path forward.
+              When you can't afford a meal, we step in — no shame, no compounding interest, just a fair path forward.
             </p>
             <div className="flex flex-wrap gap-3">
               {user ? (
@@ -81,8 +81,8 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
                 <div className="text-sm text-emerald-200">Partner Merchants</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">₦{info.stats.totalSubsidyDispersed?.toLocaleString()}</div>
-                <div className="text-sm text-emerald-200">Subsidy Dispersed</div>
+                <div className="text-2xl font-bold">₦{info.stats.totalSubsidyDisbursed?.toLocaleString()}</div>
+                <div className="text-sm text-emerald-200">Subsidy Disbursed</div>
               </div>
             </div>
           </div>
@@ -110,12 +110,13 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
               <h2 className="text-3xl font-bold mb-4 text-emerald-800">"How much you get?"</h2>
               <p className="text-emerald-700 leading-relaxed mb-6">
                 A simple, interactive checkout: you pay what you can afford today. We cover the rest instantly 
-                and settle the merchant in full. No interest. No shame. Clear your balance with cash or community tasks.
+                and settle the merchant in full. A flat 10% fee on the covered amount — no compounding interest, no shame.
+                Clear your balance with cash or community tasks.
               </p>
               <div className="space-y-4">
                 {[
                   { icon: '🛡️', title: 'Merchants paid instantly', desc: '100% of meal cost remitted immediately. The user is a premium customer.' },
-                  { icon: '⛔', title: 'No predatory interest', desc: 'Freeze guardrail blocks new orders, but no compounding fees or debt traps.' },
+                  { icon: '⛔', title: 'No debt traps', desc: 'The 10% fee is charged once at checkout. Late payment only freezes new orders — no interest, penalties, or compounding.' },
                   { icon: '🤝', title: 'Clear via tasks', desc: 'Can\'t pay cash? Complete local community tasks to clear your balance.' },
                 ].map(item => (
                   <div key={item.title} className="flex gap-3">
@@ -143,25 +144,28 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
           </div>
           <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
             {[
-              { name: 'Unverified', tier: 'UNVERIFIED', limit: '₦2,500', cap: '₦5,000', window: '7 days', cycles: '10–19', color: 'bg-stone-100 border-stone-300', textColor: 'text-stone-700', icon: '🌱' },
-              { name: 'Verified', tier: 'VERIFIED', limit: '₦10,000', cap: '₦30,000', window: '14 days', cycles: '20–29', color: 'bg-emerald-50 border-emerald-300', textColor: 'text-emerald-700', icon: '⭐' },
-              { name: 'Trusted', tier: 'TRUSTED', limit: '₦15,000', cap: '₦50,000', window: '14 days', cycles: '30–39', color: 'bg-sky-50 border-sky-300', textColor: 'text-sky-700', icon: '🔒' },
-              { name: 'Advanced', tier: 'ADVANCED', limit: '₦20,000', cap: '₦100,000', window: '14 days', cycles: '40–49', color: 'bg-violet-50 border-violet-300', textColor: 'text-violet-700', icon: '💎' },
-              { name: 'Community', tier: 'COMMUNITY', limit: '₦25,000', cap: '₦150,000', window: '14 days', cycles: '50+', color: 'bg-amber-50 border-amber-300', textColor: 'text-amber-700', icon: '🏆' },
+              { name: 'Unverified', tier: 'UNVERIFIED', limit: '₦2,500', cap: '₦5,000', window: '7 days', cycles: '0–9', color: 'bg-stone-100 border-stone-300', textColor: 'text-stone-700', icon: '🌱' },
+              { name: 'Verified', tier: 'VERIFIED', limit: '₦10,000', cap: '₦30,000', window: '14 days', cycles: '10–19', color: 'bg-emerald-50 border-emerald-300', textColor: 'text-emerald-700', icon: '⭐' },
+              { name: 'Trusted', tier: 'TRUSTED', limit: '₦15,000', cap: '₦50,000', window: '14 days', cycles: '20–29', color: 'bg-sky-50 border-sky-300', textColor: 'text-sky-700', icon: '🔒' },
+              { name: 'Advanced', tier: 'ADVANCED', limit: '₦20,000', cap: '₦100,000', window: '14 days', cycles: '30–39', color: 'bg-violet-50 border-violet-300', textColor: 'text-violet-700', icon: '💎' },
+              { name: 'Community', tier: 'COMMUNITY', limit: '₦25,000', cap: '₦150,000', window: '14 days', cycles: '40+', color: 'bg-amber-50 border-amber-300', textColor: 'text-amber-700', icon: '🏆' },
             ].map(t => (
               <div key={t.name} className={`rounded-2xl border-2 p-6 ${t.color}`}>
                 <div className="text-3xl mb-3">{t.icon}</div>
                 <h3 className={`text-xl font-bold mb-1 ${t.textColor}`}>{t.name}</h3>
-                <div className="text-3xl font-bold text-stone-800 mb-4">{t.limit}</div>
+                <div className="text-3xl font-bold text-stone-800">{t.limit}</div>
+                <div className="text-xs text-stone-500 mb-4">per-order subsidy</div>
                 <div className="space-y-2 text-sm text-stone-600">
                   <div className="flex justify-between"><span>Settlement Window</span><span className="font-medium">{t.window}</span></div>
-                  <div className="flex justify-between"><span>Clean Cycles Required</span><span className="font-medium">{t.cycles}</span></div>
-                  <div className="flex justify-between"><span>Per-Order Subsidy</span><span className="font-medium">{t.limit}</span></div>
-                  <div className="flex justify-between border-t border-stone-200 pt-2"><span>Total Credit Cap</span><span className="font-bold text-stone-800">{t.cap}</span></div>
+                  <div className="flex justify-between"><span>Clean Cycles</span><span className="font-medium">{t.cycles}</span></div>
+                  <div className="flex justify-between border-t border-stone-200 pt-2"><span>Total Outstanding Cap</span><span className="font-bold text-stone-800">{t.cap}</span></div>
                 </div>
               </div>
             ))}
           </div>
+          <p className="text-center text-sm text-stone-500 mt-6">
+            All tiers use a flat 10% processing fee on the subsidised amount only. No compounding interest or late penalties.
+          </p>
         </div>
       </section>
 
@@ -176,7 +180,7 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
             {[
               { phase: 'Phase 1', title: 'Local Micro-Subsidy', desc: 'Fiat-only sandbox with 3–5 vetted vendors on tech campuses. 7–14 day settlement windows.', tag: 'Current', color: 'bg-emerald-500' },
               { phase: 'Phase 2', title: 'Staple Supply Chain', desc: 'Expand into groceries and household sundries. Impact shifts from individuals to entire households.', tag: 'Next', color: 'bg-amber-500' },
-              { phase: 'Phase 3', title: 'KINDRED Merger', desc: 'Autonomous decentralized gig platform. Clear debts via work, earn $KIND tokens, close the loop.', tag: 'Future', color: 'bg-purple-500' },
+              { phase: 'Phase 3', title: 'KINDRED Merger', desc: 'Autonomous decentralized gig platform. Clear debts via work, earn $KIND tokens (100 $KIND ≈ ₦2,500 preview), close the loop.', tag: 'Future', color: 'bg-purple-500' },
             ].map(p => (
               <div key={p.phase} className="border border-stone-200 rounded-2xl p-6 relative">
                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white ${p.color} mb-3`}>{p.tag}</span>

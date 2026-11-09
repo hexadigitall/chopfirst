@@ -1,6 +1,6 @@
 # Chop First — Eat Now. Pay with Dignity.
 
-A dignity-preserving food micro-subsidy platform (BNPL for meals) with progressive trust tiers, credit caps, community task marketplace, and freeze guardrails. Built as an investor-ready prototype.
+A dignity-preserving food micro-subsidy platform (BNPL for meals) with progressive trust tiers, per-order and total outstanding caps, community task marketplace, and due-date freeze guardrails. Built as an investor-ready prototype.
 
 ## Problem
 
@@ -8,7 +8,7 @@ Millions skip meals during financial shortfalls. Existing options — predatory 
 
 ## Solution
 
-A simple, interactive checkout: you pay what you can afford today. Chop First covers the rest instantly and settles the merchant in full. No interest. No shame. Clear your balance with cash or community tasks.
+A simple, interactive checkout: you pay what you can afford today. Chop First covers the rest instantly and settles the merchant in full. A flat 10% fee applies to the covered amount — no compounding interest, no shame. Clear your balance with cash or community tasks.
 
 ## Tech Stack
 
@@ -16,12 +16,14 @@ A simple, interactive checkout: you pay what you can afford today. Chop First co
 |-------|-----------|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts |
 | Backend | Node.js, Express, TypeScript |
-| Database | SQLite (via better-sqlite3) |
-| Runtime | tsx (TypeScript execution) |
+| Database | PostgreSQL / Supabase (via `pg`) |
+| Runtime | Node.js 24 (dev: `tsx`; production: compiled JS) |
 
 ## Quick Start
 
 ```bash
+cp backend/.env.example backend/.env
+# Set DATABASE_URL, JWT_SECRET, and optional SEED_POOL in backend/.env
 ./start.sh
 ```
 
@@ -32,8 +34,11 @@ This starts both servers:
 ### Manual start
 
 ```bash
-# Terminal 1 — Backend
-cd backend && npm install && npm run seed && npm run dev
+# Terminal 1 — Backend (initializes schema on startup)
+cd backend && npm install && npm run dev
+
+# Optional: initialize schema + reseed demo data
+cd backend && npm run seed
 
 # Terminal 2 — Frontend
 cd frontend && npm install && npm run dev
@@ -43,21 +48,23 @@ cd frontend && npm install && npm run dev
 
 | Name | Tier | Status | Highlights |
 |------|------|--------|-----------|
-| Chidi Okonkwo | UNVERIFIED | ACTIVE | Clean slate, full credit available |
-| Amina Bello | VERIFIED | ACTIVE | Recurring user with moderate debt |
-| Femi Adeyemi | COMMUNITY | ACTIVE | Top tier, zero outstanding |
-| Nkechi Eze | UNVERIFIED | FROZEN | Near credit cap — demonstrates freeze guardrail |
-| Tunde Bakare | VERIFIED | ACTIVE | Light debt, regular user |
+| Ada Chigbu | UNVERIFIED | ACTIVE | 1 clean cycle, full credit available |
+| Amina Bello | TRUSTED | ACTIVE | 25 clean cycles, moderate debt |
+| Femi Adeyemi | COMMUNITY | ACTIVE | 42 clean cycles, top tier, zero outstanding |
+| Nkechi Eze | VERIFIED | FROZEN | Overdue order — demonstrates freeze guardrail |
+| Tunde Bakare | VERIFIED | ACTIVE | 12 clean cycles, light debt |
 
 ## Key Features
 
 ### Progressive Trust Tiers
 
-| Tier | Per-Order Limit | Credit Cap | Window | Cycles |
-|------|----------------|------------|--------|--------|
-| UNVERIFIED | ₦2,500 | ₦5,000 | 7 days | 0–2 |
-| VERIFIED | ₦10,000 | ₦30,000 | 14 days | 3–5 |
-| COMMUNITY | ₦25,000 | ₦150,000 | 14 days | 6+ |
+| Tier | Per-Order Limit | Total Cap | Window | Clean Cycles |
+|------|----------------|-----------|--------|--------------|
+| UNVERIFIED | ₦2,500 | ₦5,000 | 7 days | 0–9 |
+| VERIFIED | ₦10,000 | ₦30,000 | 14 days | 10–19 |
+| TRUSTED | ₦15,000 | ₦50,000 | 14 days | 20–29 |
+| ADVANCED | ₦20,000 | ₦100,000 | 14 days | 30–39 |
+| COMMUNITY | ₦25,000 | ₦150,000 | 14 days | 40+ |
 
 ### "How Much You Get" Checkout
 
@@ -65,29 +72,44 @@ Users choose their down payment. The system calculates:
 - Subsidised amount (total − down payment)
 - 10% processing fee (on the subsidised portion only)
 - Total outstanding
-- Verifies per-order limit and credit cap before approving
+- Verifies the per-order limit and total outstanding cap before approving
+- Checks portfolio exposure against the 85% seed-pool reserve
+
+### Clean Cycles & Tier Progression
+
+A clean cycle is earned only when a PREPAID order is fully settled on or before its due date. The user's tier is then recalculated from `clean_cycles`: 0–9 Unverified, 10–19 Verified, 20–29 Trusted, 30–39 Advanced, 40+ Community.
 
 ### Freeze Guardrail
 
-Accounts auto-freeze when remaining credit dips below the cheapest available menu item. No new orders until some debt is cleared. Auto-unfreezes once sufficient credit is freed.
+Accounts auto-freeze when any PREPAID order passes its due date with a positive outstanding balance. No late fees or penalties are added after the due date. No new orders until the balance is cleared, then the account auto-unfreezes.
 
 ### Community Task Marketplace
 
-Users can clear debt by completing community tasks (cleaning, delivery assistance, etc.). Tasks go through an assign → complete → verify workflow.
+Users can clear debt by completing community tasks (cleaning, delivery assistance, etc.). Tasks go through an assign → complete → verify workflow. Task credit is capped at the user's outstanding balance, and a clean cycle is only awarded if the settled order was still within its window.
 
 ### Payment
 
-Users can pay down their outstanding balance in full or in fractions from the Dashboard. Payments settle the oldest PREPAID orders first.
+Users can pay down their outstanding balance in full or in fractions from the Dashboard. Payments settle the oldest PREPAID orders first and are recorded in the dual ledger (`outstanding` and `outstanding_naira`, plus wallet address).
+
+### Risk & Admin Metrics
+
+The admin dashboard reports total exposure (sum of user balances), maximum portfolio exposure (sum of tier total caps), utilisation, default rate (overdue + frozen orders / total orders, labeled when demo data is present), and seed-pool reserve status.
+
+### $KIND Preview
+
+Phase 3 introduces $KIND at a preview rate of 100 $KIND ≈ ₦2,500 (₦25 per $KIND). It is displayed for demonstration only and is not spendable.
 
 ## Architecture
 
 ```
 chopfirst/
 ├── backend/
+│   ├── migrations/            # Deployable SQL (tiers + dual ledger)
 │   └── src/
 │       ├── database.ts        # Schema + DB init
-│       ├── seed.ts            # Demo data seeder
-│       ├── helpers.ts         # Shared logic (freeze check, etc.)
+│       ├── seed.ts            # Demo data seeder + tier upserts
+│       ├── tiers.ts           # Canonical 5-tier configuration
+│       ├── helpers.ts         # Freeze, settlement, exposure, seed pool
 │       ├── index.ts           # Express app entry
 │       ├── middleware/        # Auth middleware
 │       ├── models/            # TypeScript types
@@ -106,20 +128,25 @@ chopfirst/
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/platform/info` | Platform stats and tier info |
-| GET | `/api/users/me` | Current user profile |
+| POST | `/api/auth/google` | Google sign-in |
+| GET | `/api/users/demo-list` | Demo accounts for the login screen |
+| POST | `/api/users/demo-login` | Log in as a demo user |
+| GET | `/api/platform/info` | Platform stats, tiers, and seed-pool info |
+| GET | `/api/users/me` | Current user profile + tier limit |
 | POST | `/api/users/pay` | Pay toward outstanding balance |
 | GET | `/api/merchants` | List active merchants |
 | GET | `/api/merchants/:id` | Merchant detail with menu |
 | POST | `/api/orders` | Create order ("How Much You Get") |
+| GET | `/api/orders/:id` | Order detail |
 | POST | `/api/orders/:id/pay` | Pay a specific order |
 | GET | `/api/tasks` | Available tasks |
 | POST | `/api/tasks/:id/assign` | Assign a task |
 | POST | `/api/tasks/:id/complete` | Mark task complete |
 | POST | `/api/tasks/:id/verify` | Verify task completion |
-| GET | `/api/admin/metrics` | Admin KPIs |
+| GET | `/api/admin/metrics` | Admin KPIs + seed-pool status |
 | GET | `/api/admin/users` | All users (admin) |
 | POST | `/api/admin/users/:id/freeze` | Toggle freeze |
+| POST | `/api/admin/users/:id/credit` | Manually credit a user |
 
 ## Logo
 

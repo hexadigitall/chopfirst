@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import { formatNGN, tierColor } from '../utils/format';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const COLORS = ['#d6d3d1', '#34d399', '#f59e0b'];
+const COLORS = ['#d6d3d1', '#34d399', '#38bdf8', '#a78bfa', '#f59e0b'];
 
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState<any>(null);
@@ -71,8 +71,15 @@ export default function AdminDashboard() {
           { label: 'Total Orders', value: metrics.totalOrders, color: 'text-amber-600' },
           { label: 'Prepaid (Active)', value: metrics.prepaidOrders, color: 'text-amber-600' },
           { label: 'Total Subsidy', value: formatNGN(metrics.totalSubsidy), color: 'text-emerald-600' },
-          { label: 'Revenue', value: formatNGN(metrics.totalRevenue), color: 'text-emerald-600' },
-          { label: 'Default Rate', value: `${metrics.defaultRate}%`, color: metrics.defaultRate > 20 ? 'text-red-600' : 'text-amber-600' },
+          { label: 'Down Payments', value: formatNGN(metrics.totalRevenue), color: 'text-emerald-600' },
+          { label: 'Total Exposure', value: formatNGN(metrics.totalExposure || 0), color: 'text-amber-600' },
+          { label: 'Max Portfolio Exposure', value: formatNGN(metrics.maxPortfolioExposure || 0), color: 'text-stone-800' },
+          { label: 'Utilisation', value: `${metrics.utilisation || 0}%`, color: (metrics.utilisation || 0) < 40 ? 'text-emerald-600' : 'text-red-600' },
+          {
+            label: metrics.isDemoData ? 'Default Rate (Demo Data)' : 'Default Rate',
+            value: `${metrics.defaultRate}%`,
+            color: metrics.defaultRate > 20 ? 'text-red-600' : 'text-amber-600'
+          },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white rounded-xl border border-stone-200 p-4">
             <div className="text-sm text-stone-400 mb-1">{kpi.label}</div>
@@ -183,7 +190,7 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {users.map((u: any) => {
-                const cap = u.credit_cap || (u.tier === 'UNVERIFIED' ? 5000 : u.tier === 'VERIFIED' ? 30000 : u.tier === 'TRUSTED' ? 50000 : u.tier === 'ADVANCED' ? 100000 : 150000);
+                const cap = u.total_cap || (u.tier === 'UNVERIFIED' ? 5000 : u.tier === 'VERIFIED' ? 30000 : u.tier === 'TRUSTED' ? 50000 : u.tier === 'ADVANCED' ? 100000 : 150000);
                 return (
                 <tr key={u.id} className="border-b border-stone-100">
                   <td className="py-3 font-medium">{u.name}</td>
@@ -265,24 +272,36 @@ export default function AdminDashboard() {
       {/* Risk Management */}
       <div className="bg-white rounded-xl border border-stone-200 p-5">
         <h3 className="font-bold mb-3">⚠️ Risk Management</h3>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-4 gap-4">
           <div className="bg-stone-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-stone-500">Freeze Guardrail</div>
-            <div className="text-2xl font-bold text-stone-800">{metrics.frozenUsers}</div>
-            <div className="text-xs text-stone-400">Accounts currently frozen</div>
+            <div className="text-sm font-medium text-stone-500">Total Exposure</div>
+            <div className="text-2xl font-bold text-amber-600">{formatNGN(metrics.totalExposure || 0)}</div>
+            <div className="text-xs text-stone-400">Sum of all outstanding balances</div>
           </div>
           <div className="bg-stone-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-stone-500">Active Subsidy Exposure</div>
-            <div className="text-2xl font-bold text-amber-600">{formatNGN(metrics.totalSubsidy)}</div>
-            <div className="text-xs text-stone-400">Total subsidy disbursed</div>
+            <div className="text-sm font-medium text-stone-500">Max Portfolio Exposure</div>
+            <div className="text-2xl font-bold text-stone-800">{formatNGN(metrics.maxPortfolioExposure || 0)}</div>
+            <div className="text-xs text-stone-400">Sum of users' total caps</div>
           </div>
           <div className="bg-stone-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-stone-500">Default Rate</div>
+            <div className="text-sm font-medium text-stone-500">Utilisation</div>
+            <div className={`text-2xl font-bold ${(metrics.utilisation || 0) < 40 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {metrics.utilisation || 0}%
+            </div>
+            <div className="text-xs text-stone-400">Exposure / max exposure — target &lt; 40%</div>
+          </div>
+          <div className="bg-stone-50 rounded-lg p-4">
+            <div className="text-sm font-medium text-stone-500">
+              Default Rate {metrics.isDemoData && <span className="text-amber-600">· Demo Data</span>}
+            </div>
             <div className={`text-2xl font-bold ${metrics.defaultRate > 20 ? 'text-red-600' : 'text-emerald-600'}`}>
               {metrics.defaultRate}%
             </div>
-            <div className="text-xs text-stone-400">Orders still outstanding</div>
+            <div className="text-xs text-stone-400">Overdue & frozen / total orders</div>
           </div>
+        </div>
+        <div className="mt-4 text-xs text-stone-400">
+          Seed pool: {formatNGN(metrics.seedPool || 1000000)} · new orders blocked above 85% reserve ({formatNGN((metrics.seedPool || 1000000) * 0.85)})
         </div>
       </div>
     </div>

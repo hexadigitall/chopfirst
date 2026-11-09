@@ -1,4 +1,4 @@
-export type UserTier = 'UNVERIFIED' | 'VERIFIED' | 'COMMUNITY';
+export type UserTier = 'UNVERIFIED' | 'VERIFIED' | 'TRUSTED' | 'ADVANCED' | 'COMMUNITY' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'FROZEN' | 'SUSPENDED';
 export type OrderStatus = 'PREPAID' | 'COMPLETED' | 'DISPUTED';
 export type TxType = 'DOWN_PAYMENT' | 'SUBSIDY' | 'SETTLEMENT' | 'TASK_CREDIT' | 'FEE';
@@ -79,10 +79,12 @@ export interface Task {
 }
 
 export interface TierLimit {
-  tier: UserTier;
-  max_subsidy: number;
-  window_days: number;
+  name: string;
   min_cycles: number;
+  max_cycles: number;
+  per_order: number;
+  total_cap: number;
+  window_days: number;
 }
 
 export interface ApiResponse<T = any> {

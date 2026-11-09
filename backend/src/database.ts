@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
-import { seed } from './seed';
+import { ensureTiers, seed } from './seed';
 
 let pool: Pool;
 
@@ -85,12 +85,23 @@ export async function initDb(): Promise<void> {
       total_cost DOUBLE PRECISION NOT NULL,
       down_payment DOUBLE PRECISION NOT NULL,
       outstanding DOUBLE PRECISION NOT NULL,
+      outstanding_naira DOUBLE PRECISION,
+      wallet_address TEXT,
       fee DOUBLE PRECISION NOT NULL,
       status TEXT NOT NULL DEFAULT 'PREPAID' CHECK(status IN ('PREPAID','COMPLETED','DISPUTED')),
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       due_at TIMESTAMP NOT NULL
     )
   `);
+
+  // Dual ledger: keep both the NGN outstanding value and a wallet placeholder on every order.
+  await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS outstanding_naira DOUBLE PRECISION`).catch(() => {});
+  await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS wallet_address TEXT`).catch(() => {});
+  await db.query(`UPDATE orders SET outstanding_naira = outstanding WHERE outstanding_naira IS NULL`).catch(() => {});
+  await db.query(`
+    UPDATE orders o SET wallet_address = u.wallet_address
+    FROM users u WHERE u.id = o.user_id AND o.wallet_address IS NULL
+  `).catch(() => {});
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS order_items (
@@ -131,19 +142,20 @@ export async function initDb(): Promise<void> {
   `);
 
   await db.query(`
-    CREATE TABLE IF NOT EXISTS tier_limits (
-      tier TEXT PRIMARY KEY,
-      max_subsidy DOUBLE PRECISION NOT NULL,
-      window_days INTEGER NOT NULL,
+    CREATE TABLE IF NOT EXISTS tiers (
+      name TEXT PRIMARY KEY,
       min_cycles INTEGER NOT NULL,
-      credit_cap DOUBLE PRECISION NOT NULL DEFAULT 5000
+      max_cycles INTEGER NOT NULL,
+      per_order DOUBLE PRECISION NOT NULL,
+      total_cap DOUBLE PRECISION NOT NULL,
+      window_days INTEGER NOT NULL
     )
   `);
 
-  // Migration: add credit_cap if missing (safe to re-run)
-  await db.query(`
-    ALTER TABLE tier_limits ADD COLUMN IF NOT EXISTS credit_cap DOUBLE PRECISION NOT NULL DEFAULT 5000
-  `).catch(() => {});
+  // Keep tier limits in sync with the 5-tier blueprint on every boot.
+  // This is an upsert, so the values are safe to re-run and the manual
+  // Supabase seed SQL produces the same result.
+  await ensureTiers(db);
 
   // Auto-seed if database is empty (for serverless deployments)
   const result = await db.query('SELECT COUNT(*)::int as c FROM users');

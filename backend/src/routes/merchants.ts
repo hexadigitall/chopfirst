@@ -19,10 +19,13 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
     SELECT COUNT(*)::int as total_orders, COALESCE(SUM(total_cost),0) as revenue
     FROM orders WHERE merchant_id = $1 AND status != 'DISPUTED'
   `, [req.params.id]);
+  // Merchant POS only sees prepaid tickets — never user debt or outstanding balances.
   const recentResult = await db.query(`
-    SELECT o.*, u.name as user_name FROM orders o
+    SELECT o.id, o.total_cost, o.status, o.created_at, u.name as user_name
+    FROM orders o
     JOIN users u ON u.id = o.user_id
-    WHERE o.merchant_id = $1 ORDER BY o.created_at DESC LIMIT 10
+    WHERE o.merchant_id = $1 AND o.status = 'PREPAID'
+    ORDER BY o.created_at DESC LIMIT 10
   `, [req.params.id]);
   res.json({ success: true, data: { ...merchant, menu: menuResult.rows, stats: statsResult.rows[0], recentOrders: recentResult.rows } });
 }));

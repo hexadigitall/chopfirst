@@ -1,9 +1,26 @@
 import { Pool } from 'pg';
 import { logger } from './logger';
+import { TIERS, findTierByCode } from './tiers';
 
 let idCounter = 0;
 function id(): string {
   return `id_${++idCounter}`;
+}
+
+export async function ensureTiers(db: Pool): Promise<void> {
+  for (const t of TIERS) {
+    await db.query(
+      `INSERT INTO tiers (name, min_cycles, max_cycles, per_order, total_cap, window_days)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (name) DO UPDATE SET
+         min_cycles = EXCLUDED.min_cycles,
+         max_cycles = EXCLUDED.max_cycles,
+         per_order = EXCLUDED.per_order,
+         total_cap = EXCLUDED.total_cap,
+         window_days = EXCLUDED.window_days`,
+      [t.name, t.minCycles, t.maxCycles, t.perOrder, t.totalCap, t.windowDays]
+    );
+  }
 }
 
 export async function seed(db: Pool): Promise<void> {
@@ -14,25 +31,15 @@ export async function seed(db: Pool): Promise<void> {
   await db.query('DELETE FROM menu_items');
   await db.query('DELETE FROM merchants');
   await db.query('DELETE FROM users');
-  await db.query('DELETE FROM tier_limits');
-
-  const tiers = [
-    { tier: 'UNVERIFIED', max_subsidy: 2500, window_days: 7, min_cycles: 0, credit_cap: 5000 },
-    { tier: 'VERIFIED', max_subsidy: 10000, window_days: 14, min_cycles: 20, credit_cap: 30000 },
-    { tier: 'TRUSTED', max_subsidy: 15000, window_days: 14, min_cycles: 30, credit_cap: 50000 },
-    { tier: 'ADVANCED', max_subsidy: 20000, window_days: 14, min_cycles: 40, credit_cap: 100000 },
-    { tier: 'COMMUNITY', max_subsidy: 25000, window_days: 14, min_cycles: 50, credit_cap: 150000 },
-  ];
-  for (const t of tiers) {
-    await db.query('INSERT INTO tier_limits VALUES ($1,$2,$3,$4,$5)', [t.tier, t.max_subsidy, t.window_days, t.min_cycles, t.credit_cap]);
-  }
+  await db.query('DELETE FROM tiers');
+  await ensureTiers(db);
 
   const users = [
-    { phone: '+2348010000001', name: 'Chidi Okonkwo', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 12, outstanding: 0, total: 1500, wallet: '0x0000000000000000000000000000000000000001', kind: 10 },
-    { phone: '+2348010000002', name: 'Amina Bello', tier: 'VERIFIED', status: 'ACTIVE', cycles: 25, outstanding: 1050, total: 8500, wallet: '0x0000000000000000000000000000000000000002', kind: 45 },
-    { phone: '+2348010000003', name: 'Femi Adeyemi', tier: 'ADVANCED', status: 'ACTIVE', cycles: 45, outstanding: 0, total: 22000, wallet: '0x0000000000000000000000000000000000000003', kind: 120 },
-    { phone: '+2348010000004', name: 'Nkechi Eze', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 15, outstanding: 4800, total: 7200, wallet: '0x0000000000000000000000000000000000000004', kind: 10 },
-    { phone: '+2348010000005', name: 'Tunde Bakare', tier: 'VERIFIED', status: 'ACTIVE', cycles: 22, outstanding: 500, total: 6200, wallet: '0x0000000000000000000000000000000000000005', kind: 30 },
+    { phone: '+2348010000001', name: 'Ada Chigbu', tier: 'UNVERIFIED', status: 'ACTIVE', cycles: 1, outstanding: 0, total: 1000, wallet: '0x0000000000000000000000000000000000000001', kind: 0 },
+    { phone: '+2348010000002', name: 'Amina Bello', tier: 'TRUSTED', status: 'ACTIVE', cycles: 25, outstanding: 1100, total: 8500, wallet: '0x0000000000000000000000000000000000000002', kind: 45 },
+    { phone: '+2348010000003', name: 'Femi Adeyemi', tier: 'COMMUNITY', status: 'ACTIVE', cycles: 42, outstanding: 0, total: 22000, wallet: '0x0000000000000000000000000000000000000003', kind: 120 },
+    { phone: '+2348010000004', name: 'Nkechi Eze', tier: 'VERIFIED', status: 'FROZEN', cycles: 15, outstanding: 3300, total: 7200, wallet: '0x0000000000000000000000000000000000000004', kind: 10 },
+    { phone: '+2348010000005', name: 'Tunde Bakare', tier: 'VERIFIED', status: 'ACTIVE', cycles: 12, outstanding: 550, total: 6200, wallet: '0x0000000000000000000000000000000000000005', kind: 30 },
   ].map(u => ({ ...u, id: id() }));
   for (const u of users) {
     await db.query(
@@ -131,15 +138,20 @@ export async function seed(db: Pool): Promise<void> {
     const orderId = id();
     const merchant = merchants[o.merchantIdx];
     const total = o.items.reduce((s, i) => s + i.price * i.qty, 0);
-    const fee = Math.round((total - o.down) * 0.10 * 100) / 100;
-    const outstanding = total - o.down + fee;
+    const subsidy = total - o.down;
+    const fee = Math.round(subsidy * 0.10 * 100) / 100;
+    const grossOutstanding = subsidy + fee;
+    const isCompleted = o.status === 'COMPLETED';
+    const outstanding = isCompleted ? 0 : grossOutstanding;
     const createdAt = datetime(-o.daysAgo);
-    const dueAt = datetime(-o.daysAgo + 14);
-    const userId = users[o.userId - 1].id;
+    const user = users[o.userId - 1];
+    const windowDays = findTierByCode(user.tier)?.windowDays ?? 14;
+    const dueAt = datetime(-o.daysAgo + windowDays);
+    const userId = user.id;
 
     await db.query(
-      'INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,fee,status,created_at,due_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-      [orderId, userId, merchant.id, total, o.down, outstanding, fee, o.status, createdAt, dueAt]
+      'INSERT INTO orders (id,user_id,merchant_id,total_cost,down_payment,outstanding,outstanding_naira,wallet_address,fee,status,created_at,due_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
+      [orderId, userId, merchant.id, total, o.down, outstanding, outstanding, user.wallet, fee, o.status, createdAt, dueAt]
     );
 
     for (const item of o.items) {
@@ -158,15 +170,37 @@ export async function seed(db: Pool): Promise<void> {
     );
     await db.query(
       'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-      [id(), orderId, userId, merchant.id, outstanding - fee, 'SUBSIDY', 'COMPLETED', createdAt]
+      [id(), orderId, userId, merchant.id, subsidy, 'SUBSIDY', 'COMPLETED', createdAt]
     );
-    if (outstanding > 0) {
+    if (fee > 0) {
       await db.query(
         'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
         [id(), orderId, userId, merchant.id, fee, 'FEE', 'COMPLETED', createdAt]
       );
     }
+    if (isCompleted) {
+      await db.query(
+        'INSERT INTO transactions (id,order_id,user_id,merchant_id,amount,type,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+        [id(), orderId, userId, merchant.id, grossOutstanding, 'SETTLEMENT', 'COMPLETED', dueAt]
+      );
+    }
   }
 
   logger.info({ users: users.length, merchants: merchants.length, menuItems: allMenuItems.length, tasks: taskDefs.length, orders: orderDefs.length }, 'Seed complete');
+}
+
+if (require.main === module) {
+  (async () => {
+    const { initDb, getDb } = await import('./database');
+    await initDb();
+    const db = getDb();
+    try {
+      await seed(db);
+    } finally {
+      await db.end();
+    }
+  })().catch((err) => {
+    logger.error({ err }, 'Seed failed');
+    process.exit(1);
+  });
 }

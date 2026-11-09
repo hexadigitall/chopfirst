@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getDb, asyncHandler } from '../database';
-import { authenticate, requireAdmin, requireRealUser } from '../middleware/auth';
-import { v4 as uuid } from 'uuid';
+import { authenticate } from '../middleware/auth';
+import { applySettlement } from '../helpers';
 
 const router = Router();
 
@@ -28,7 +28,7 @@ router.get('/all', authenticate, asyncHandler(async (_req: Request, res: Respons
   res.json({ success: true, data: result.rows });
 }));
 
-router.post('/:id/assign', authenticate, requireRealUser, asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/assign', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const taskResult = await db.query("SELECT * FROM tasks WHERE id = $1 AND status = $2", [req.params.id, 'OPEN']);
   const task = taskResult.rows[0] as any;
@@ -38,7 +38,7 @@ router.post('/:id/assign', authenticate, requireRealUser, asyncHandler(async (re
   res.json({ success: true, data: updatedResult.rows[0] });
 }));
 
-router.post('/:id/complete', authenticate, requireRealUser, asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/complete', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const taskResult = await db.query("SELECT * FROM tasks WHERE id = $1 AND assigned_to = $2 AND status = $3", [req.params.id, req.user!.id, 'ASSIGNED']);
   const task = taskResult.rows[0] as any;
@@ -47,31 +47,26 @@ router.post('/:id/complete', authenticate, requireRealUser, asyncHandler(async (
   res.json({ success: true, data: { message: 'Task submitted for verification' } });
 }));
 
-router.post('/:id/verify', authenticate, requireRealUser, asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/verify', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const db = getDb();
   const taskResult = await db.query("SELECT * FROM tasks WHERE id = $1 AND status = $2", [req.params.id, 'COMPLETED_PENDING']);
   const task = taskResult.rows[0] as any;
   if (!task) { res.status(404).json({ success: false, error: 'Task not pending verification' }); return; }
+
   await db.query("UPDATE tasks SET status = $1 WHERE id = $2", ['VERIFIED', req.params.id]);
-  // Credit user
-  await db.query('UPDATE users SET outstanding_balance = GREATEST(0, outstanding_balance - $1), clean_cycles = clean_cycles + 1 WHERE id = $2', [task.credit_value, task.assigned_to]);
-  // Check if fully cleared
-  const userResult = await db.query('SELECT * FROM users WHERE id = $1', [task.assigned_to]);
-  const user = userResult.rows[0] as any;
-  if (user.outstanding_balance <= 0 && user.status === 'FROZEN') {
-    await db.query("UPDATE users SET status = $1 WHERE id = $2", ['ACTIVE', task.assigned_to]);
-  }
-  // Create transaction
-  await db.query('INSERT INTO transactions (id,user_id,amount,type) VALUES ($1,$2,$3,$4)', [uuid(), task.assigned_to, task.credit_value, 'TASK_CREDIT']);
-  // Tier upgrade check
-  if (user.outstanding_balance <= 0) {
-    const nextTierResult = await db.query('SELECT * FROM tier_limits WHERE min_cycles <= $1 ORDER BY min_cycles DESC LIMIT 1', [user.clean_cycles]);
-    const nextTier = nextTierResult.rows[0] as any;
-    if (nextTier && nextTier.tier !== user.tier) {
-      await db.query('UPDATE users SET tier = $1 WHERE id = $2', [nextTier.tier, user.id]);
+
+  // Credit is capped at the user's outstanding balance; any excess is discarded.
+  const settlement = await applySettlement(task.assigned_to, Number(task.credit_value), 'TASK_CREDIT');
+
+  res.json({
+    success: true,
+    data: {
+      message: 'Task verified, balance updated',
+      creditApplied: settlement.applied,
+      fullyCleared: settlement.fullyCleared,
+      user: settlement.user
     }
-  }
-  res.json({ success: true, data: { message: 'Task verified, balance updated', user } });
+  });
 }));
 
 export default router;

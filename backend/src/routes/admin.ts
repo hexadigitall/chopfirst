@@ -16,7 +16,23 @@ router.get('/metrics', authenticate, requireAdmin, asyncHandler(async (_req: Req
   const prepaidOrders = (await db.query("SELECT COUNT(*)::int as c FROM orders WHERE status = $1", ['PREPAID'])).rows[0].c;
   const totalSubsidy = (await db.query("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE type = $1", ['SUBSIDY'])).rows[0].s;
   const totalRevenue = (await db.query("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE type = $1", ['DOWN_PAYMENT'])).rows[0].s;
-  const defaultRate = totalOrders > 0 ? (prepaidOrders / totalOrders * 100) : 0;
+
+  const totalExposure = Number((await db.query("SELECT COALESCE(SUM(outstanding_balance),0) as s FROM users")).rows[0].s);
+  const maxPortfolioExposure = Number((await db.query(`
+    SELECT COALESCE(SUM(t.total_cap),0) as s
+    FROM users u JOIN tiers t ON UPPER(t.name) = UPPER(u.tier)
+  `)).rows[0].s);
+  const utilisation = maxPortfolioExposure > 0 ? (totalExposure / maxPortfolioExposure * 100) : 0;
+
+  const defaultedOrders = (await db.query(`
+    SELECT COUNT(*)::int as c
+    FROM orders o JOIN users u ON u.id = o.user_id
+    WHERE o.due_at < NOW() AND o.outstanding > 0 AND u.status = 'FROZEN'
+  `)).rows[0].c;
+  const defaultRate = totalOrders > 0 ? (defaultedOrders / totalOrders * 100) : 0;
+
+  const demoUsers = (await db.query("SELECT COUNT(*)::int as c FROM users WHERE id LIKE 'id_%'")).rows[0].c;
+  const isDemoData = totalUsers > 0 && demoUsers === totalUsers;
 
   const tierBreakdown = (await db.query('SELECT tier, COUNT(*)::int as count FROM users GROUP BY tier')).rows;
   const recentOrders = (await db.query(`
@@ -32,7 +48,13 @@ router.get('/metrics', authenticate, requireAdmin, asyncHandler(async (_req: Req
 
   res.json({ success: true, data: {
     totalUsers, activeUsers, frozenUsers, totalOrders, prepaidOrders,
-    totalSubsidy, totalRevenue, defaultRate: Math.round(defaultRate * 100) / 100,
+    totalSubsidy, totalRevenue,
+    totalExposure, maxPortfolioExposure,
+    utilisation: Math.round(utilisation * 100) / 100,
+    defaultedOrders,
+    defaultRate: Math.round(defaultRate * 100) / 100,
+    isDemoData,
+    seedPool: Number(process.env.SEED_POOL || 1000000),
     tierBreakdown, recentOrders, dailyRevenue
   }});
 }));
