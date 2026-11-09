@@ -53,7 +53,7 @@ export default function Landing({ user, onLogin }: { user: any; onLogin: (id: st
                   Go to Dashboard →
                 </Link>
               ) : (
-                <button onClick={() => navigate('/demo-list')} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
+                <button onClick={() => navigate('/demo-login')} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors border border-emerald-400">
                   Try Demo
                 </button>
               )}
